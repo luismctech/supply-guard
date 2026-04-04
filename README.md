@@ -178,11 +178,15 @@ Works with GitHub Actions, Azure DevOps, GitLab CI, Jenkins, and Bitbucket Pipel
 
 ## AI/Agent integration
 
-SupplyGuard is designed to be first-class AI-agent friendly.
+SupplyGuard is designed to be first-class AI-agent friendly. It can be used by any AI coding assistant via CLI, MCP server, or agent guidance files.
 
 ### MCP Server
 
-Expose SupplyGuard as an MCP tool for Cursor, Copilot, Codex, or any MCP-compatible agent:
+The `supply-guard mcp` command starts a [Model Context Protocol](https://modelcontextprotocol.io/) server over stdio, allowing AI agents to call SupplyGuard as typed tools without parsing CLI output.
+
+#### Setup in Cursor
+
+Add to your MCP configuration (`.cursor/mcp.json` or Settings > MCP Servers):
 
 ```json
 {
@@ -195,36 +199,147 @@ Expose SupplyGuard as an MCP tool for Cursor, Copilot, Codex, or any MCP-compati
 }
 ```
 
-Available tools: `scan`, `explain_finding`, `suggest_fix`, `list_checks`, `get_policy`.
+#### Setup in VS Code / GitHub Copilot
+
+Add to `.vscode/mcp.json` in your project:
+
+```json
+{
+  "servers": {
+    "supply-guard": {
+      "type": "stdio",
+      "command": "supply-guard",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+#### Setup in Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "supply-guard": {
+      "command": "supply-guard",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+> **Prerequisite:** The `supply-guard` binary must be installed and available in your PATH. See [Installation](#installation).
+
+#### MCP tools
+
+Once configured, the following tools are available to your AI agent:
+
+| Tool | Description | Example usage |
+|------|-------------|---------------|
+| `scan` | Run a full or targeted scan on a directory | `scan({ directory: ".", format: "markdown" })` |
+| `explain_finding` | Deep-dive on why a check matters, with real-world attack examples | `explain_finding({ check_id: "SG006", package: "lod4sh" })` |
+| `suggest_fix` | Step-by-step remediation instructions for a finding | `suggest_fix({ check_id: "SG009", file: ".github/workflows/ci.yml" })` |
+| `list_checks` | List all 12 security checks with descriptions and ecosystems | `list_checks({})` |
+| `get_policy` | Read the active SupplyGuard policy configuration | `get_policy({})` |
+
+#### MCP resources
+
+| Resource URI | Description |
+|---|---|
+| `supplyguard://checks` | All check IDs with descriptions (JSON) |
+| `supplyguard://policy/{dir}` | Active policy configuration for a directory (JSON) |
+
+### Report command
+
+Generate formatted reports from a saved JSON scan result:
+
+```bash
+# Save scan results
+supply-guard scan -o json -q > scan-result.json
+
+# GitHub PR comment (collapsible sections by severity)
+supply-guard report scan-result.json -f pr-comment
+
+# Executive summary for stakeholders
+supply-guard report scan-result.json -f executive-summary
+
+# Git commit message for security fixes
+supply-guard report scan-result.json -f commit-message
+
+# Developer action items
+supply-guard report scan-result.json -f developer-brief
+```
 
 ### Output formats
 
 | Format | Flag | Best for |
 |--------|------|----------|
-| `table` | `-o table` | Human terminal display |
-| `json` | `-o json` | Programmatic parsing |
-| `sarif` | `-o sarif` | GitHub Code Scanning, IDE |
-| `markdown` | `-o markdown` | Chat display, PR comments |
+| `table` | `-o table` | Human terminal display (default) |
+| `json` | `-o json` | Programmatic parsing, automation |
+| `sarif` | `-o sarif` | GitHub Code Scanning, IDE integration |
+| `markdown` | `-o markdown` | AI chat display, PR comments |
 | `diff` | `-o diff` | Auto-applying fixes via `git apply` |
-| `stream-json` | `-o stream-json` | Real-time event streaming |
+| `stream-json` | `-o stream-json` | Real-time NDJSON event streaming |
+
+### CLI flags reference
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--output` | `-o` | Output format (table, json, sarif, markdown, diff, stream-json) |
+| `--quiet` | `-q` | Suppress banners, warnings, and decorations |
+| `--fail-on` | | Fail with exit 1 on these severities (e.g. `critical,high`) |
+| `--baseline` | | Path to previous scan JSON, shows only new findings |
+| `--watch` | | Watch for file changes and re-scan continuously |
+| `--config` | | Path to trusted config file |
 
 ### Exit codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success, no findings |
-| 1 | Findings exceed `--fail-on` threshold |
-| 2 | Scanner error |
+| 1 | Findings exceed `--fail-on` severity threshold |
+| 2 | Scanner error (bad config, invalid path, etc.) |
 | 10 | Critical findings present |
-| 11 | High findings (no critical) |
-| 12 | Medium findings (no critical/high) |
+| 11 | High findings present (no critical) |
+| 12 | Medium findings present (no critical/high) |
+
+### Fix suggestions
+
+Every finding includes a machine-actionable `fix` field (when available) with:
+
+- `type` — `replace`, `delete`, `add`, `config_change`, or `command`
+- `file`, `line` — target location
+- `old_content`, `new_content` — for deterministic text replacements
+- `description` — human-readable instructions when the fix requires judgment
+
+Use `--output diff` to generate `git apply`-compatible patches from all fixable findings.
+
+### Baseline diffing
+
+Compare scans across time using stable fingerprints:
+
+```bash
+# Initial scan
+supply-guard scan -o json -q > baseline.json
+
+# After changes, show only NEW findings
+supply-guard scan --baseline baseline.json -o json -q
+```
+
+Each finding has a `fingerprint` field (SHA-256 prefix of check_id + file + package + version) for deduplication.
 
 ### Agent guidance files
 
-- `AGENTS.md` — Auto-discovered by Codex and GitHub Copilot
-- `SKILL.md` — Cursor skill definition
-- `.cursor/rules/supply-guard.mdc` — Auto-triggers on dependency file edits
-- `schema/scan-result.schema.json` — JSON Schema for output validation
+SupplyGuard ships files that AI agents auto-discover:
+
+| File | Auto-discovered by | Purpose |
+|------|-------------------|---------|
+| `AGENTS.md` | OpenAI Codex, GitHub Copilot | CLI reference, workflows, project layout |
+| `SKILL.md` | Cursor Skills | When to use, how to invoke, how to interpret results |
+| `.cursor/rules/supply-guard.mdc` | Cursor | Auto-triggers when editing dependency files |
+| `schema/scan-result.schema.json` | Any JSON-aware agent | Formal schema for validating JSON output |
 
 ## Design principles
 

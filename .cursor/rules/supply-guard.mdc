@@ -1,0 +1,97 @@
+---
+description: Supply chain security scanning with SupplyGuard
+globs:
+  - package.json
+  - package-lock.json
+  - requirements.txt
+  - Pipfile
+  - pyproject.toml
+  - poetry.lock
+  - Cargo.toml
+  - Cargo.lock
+  - pom.xml
+  - build.gradle
+  - "*.csproj"
+  - packages.lock.json
+  - supplyguard.yaml
+  - .github/workflows/*.yml
+  - .github/workflows/*.yaml
+  - .npmrc
+  - pip.conf
+alwaysApply: false
+---
+
+# SupplyGuard — Supply Chain Security
+
+When modifying dependency files, lock files, CI workflows, or install scripts, run a supply chain security scan.
+
+## Scanning
+
+```bash
+# Scan with JSON output (best for parsing)
+supply-guard scan --output json --quiet
+
+# Scan with markdown for readable report
+supply-guard scan --output markdown --quiet
+
+# Get auto-fix patches and apply them
+supply-guard scan --output diff --quiet > fixes.patch && git apply fixes.patch
+
+# Fail on critical/high (CI mode)
+supply-guard scan --fail-on critical,high --output json --quiet
+```
+
+## MCP Server
+
+SupplyGuard is available as an MCP server. If not already configured in `.cursor/mcp.json`, add:
+
+```json
+{
+  "mcpServers": {
+    "supply-guard": {
+      "command": "supply-guard",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### MCP tools
+
+- `scan` — Full or targeted scan. Params: `directory`, `checks[]`, `format` (json/markdown/diff).
+- `explain_finding` — Explain why a check matters. Params: `check_id` (required), `package`.
+- `suggest_fix` — Remediation steps. Params: `check_id` (required), `file`, `package`, `ecosystem`.
+- `list_checks` — List all 12 checks with descriptions and ecosystems.
+- `get_policy` — Read the active policy configuration.
+
+## Report generation
+
+Save scan results then generate formatted reports:
+
+```bash
+supply-guard scan -o json -q > scan-result.json
+supply-guard report scan-result.json -f pr-comment
+supply-guard report scan-result.json -f executive-summary
+supply-guard report scan-result.json -f commit-message
+supply-guard report scan-result.json -f developer-brief
+```
+
+## Key checks
+
+- **SG001**: Lockfile must match package manifest
+- **SG002**: Dangerous install scripts (preinstall, postinstall)
+- **SG003**: Known malicious packages and C2 domains
+- **SG005**: Phantom dependencies (in manifest but not imported)
+- **SG006**: Typosquatting detection (e.g., `lod4sh` vs `lodash`)
+- **SG008**: Package manager config hardening
+- **SG009**: GitHub Actions must be pinned by SHA
+- **SG011**: Version ranges should not be overly permissive
+- **SG012**: Unsafe CI install commands (e.g., `npm install` instead of `npm ci`)
+
+## When to scan
+
+- After adding or removing dependencies
+- After modifying CI workflow files
+- After updating lockfiles
+- Before creating PRs that touch dependency files
+- After modifying `.npmrc`, `pip.conf`, or `supplyguard.yaml`
