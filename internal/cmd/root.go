@@ -29,10 +29,12 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ./supplyguard.yaml)")
-	rootCmd.PersistentFlags().StringP("output", "o", "table", "output format: table, json, sarif")
+	rootCmd.PersistentFlags().StringP("output", "o", "table", "output format: table, json, sarif, markdown, diff")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "suppress banners, warnings, and decorations (agent-friendly)")
 	rootCmd.PersistentFlags().StringSlice("fail-on", []string{}, "fail with exit code 1 on these severities (e.g. critical,high)")
 
 	_ = viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
+	_ = viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet"))
 	_ = viper.BindPFlag("fail_on", rootCmd.PersistentFlags().Lookup("fail-on"))
 }
 

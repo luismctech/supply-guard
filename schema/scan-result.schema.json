@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AlbertoMZCruz/supply-guard/schema/scan-result.schema.json",
+  "title": "SupplyGuard Scan Result",
+  "description": "Output schema for supply-guard scan --output json",
+  "type": "object",
+  "required": ["project_dir", "timestamp", "duration", "ecosystems_detected", "summary", "findings"],
+  "properties": {
+    "project_dir": {
+      "type": "string",
+      "description": "Absolute path of the scanned directory"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of scan start"
+    },
+    "duration": {
+      "type": "string",
+      "description": "Human-readable scan duration (e.g. '142ms')"
+    },
+    "ecosystems_detected": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["npm", "pip", "cargo", "nuget", "maven", "ci"] },
+      "description": "Ecosystems detected in the project"
+    },
+    "summary": { "$ref": "#/$defs/Summary" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Finding" }
+    }
+  },
+  "$defs": {
+    "Summary": {
+      "type": "object",
+      "required": ["total", "critical", "high", "medium", "low", "info"],
+      "properties": {
+        "total":    { "type": "integer", "minimum": 0 },
+        "critical": { "type": "integer", "minimum": 0 },
+        "high":     { "type": "integer", "minimum": 0 },
+        "medium":   { "type": "integer", "minimum": 0 },
+        "low":      { "type": "integer", "minimum": 0 },
+        "info":     { "type": "integer", "minimum": 0 }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "required": ["check_id", "severity", "ecosystem", "file", "title", "description"],
+      "properties": {
+        "check_id": {
+          "type": "string",
+          "pattern": "^SG[0-9]{3}$",
+          "description": "Check identifier (SG001-SG012)"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"]
+        },
+        "ecosystem": { "type": "string" },
+        "package":   { "type": "string" },
+        "version":   { "type": "string" },
+        "file":      { "type": "string", "description": "Relative path to the affected file" },
+        "line":      { "type": "integer", "minimum": 1 },
+        "title":     { "type": "string" },
+        "description": { "type": "string" },
+        "remediation": { "type": "string" },
+        "fingerprint": {
+          "type": "string",
+          "description": "Stable SHA-256 prefix for deduplication across scans"
+        },
+        "fix": { "$ref": "#/$defs/FixSuggestion" }
+      }
+    },
+    "FixSuggestion": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["replace", "delete", "add", "config_change", "command"],
+          "description": "Kind of fix operation"
+        },
+        "file":        { "type": "string", "description": "Target file (defaults to finding file)" },
+        "line":        { "type": "integer", "minimum": 1 },
+        "old_content": { "type": "string", "description": "Content to replace or delete" },
+        "new_content": { "type": "string", "description": "Replacement or new content" },
+        "description": { "type": "string", "description": "Human-readable fix description when not deterministic" }
+      }
+    }
+  }
+}

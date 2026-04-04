@@ -48,16 +48,33 @@ supply-guard scan
 supply-guard scan /path/to/project
 
 # JSON output for CI parsing
-supply-guard scan -o json
+supply-guard scan -o json -q
 
 # SARIF output for GitHub Code Scanning / VS Code
 supply-guard scan -o sarif
 
+# Markdown output for PR comments and AI chat
+supply-guard scan -o markdown -q
+
+# Auto-fix patches (pipe to git apply)
+supply-guard scan -o diff -q > fixes.patch && git apply fixes.patch
+
 # Fail CI on critical or high findings
 supply-guard scan --fail-on critical,high
 
+# Only show new findings vs. a baseline
+supply-guard scan -o json -q > baseline.json
+# ... later ...
+supply-guard scan --baseline baseline.json -o json -q
+
+# Watch mode (re-scans on file changes)
+supply-guard scan --watch
+
 # Initialize hardening config in your project
 supply-guard init
+
+# Generate a PR comment from a saved scan
+supply-guard report scan-result.json -f pr-comment
 ```
 
 ## Installation
@@ -158,6 +175,56 @@ Works with GitHub Actions, Azure DevOps, GitLab CI, Jenkins, and Bitbucket Pipel
 - **Config injection warning**: Detects when a scanned repo plants a `supplyguard.yaml` that could disable checks. Use `--config` to specify a trusted path, or set `SUPPLYGUARD_TRUST_PROJECT_CONFIG=true` to suppress.
 - **HTTPS-only updates**: The `update` command enforces HTTPS and blocks redirect downgrades.
 - **Updatable threat intelligence**: `supply-guard update` downloads the latest IOC database to `~/.config/supplyguard/iocs.json`, which is automatically preferred over the embedded data.
+
+## AI/Agent integration
+
+SupplyGuard is designed to be first-class AI-agent friendly.
+
+### MCP Server
+
+Expose SupplyGuard as an MCP tool for Cursor, Copilot, Codex, or any MCP-compatible agent:
+
+```json
+{
+  "mcpServers": {
+    "supply-guard": {
+      "command": "supply-guard",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Available tools: `scan`, `explain_finding`, `suggest_fix`, `list_checks`, `get_policy`.
+
+### Output formats
+
+| Format | Flag | Best for |
+|--------|------|----------|
+| `table` | `-o table` | Human terminal display |
+| `json` | `-o json` | Programmatic parsing |
+| `sarif` | `-o sarif` | GitHub Code Scanning, IDE |
+| `markdown` | `-o markdown` | Chat display, PR comments |
+| `diff` | `-o diff` | Auto-applying fixes via `git apply` |
+| `stream-json` | `-o stream-json` | Real-time event streaming |
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success, no findings |
+| 1 | Findings exceed `--fail-on` threshold |
+| 2 | Scanner error |
+| 10 | Critical findings present |
+| 11 | High findings (no critical) |
+| 12 | Medium findings (no critical/high) |
+
+### Agent guidance files
+
+- `AGENTS.md` — Auto-discovered by Codex and GitHub Copilot
+- `SKILL.md` — Cursor skill definition
+- `.cursor/rules/supply-guard.mdc` — Auto-triggers on dependency file edits
+- `schema/scan-result.schema.json` — JSON Schema for output validation
 
 ## Design principles
 

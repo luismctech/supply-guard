@@ -19,7 +19,13 @@ func Get(format string) (Reporter, error) {
 		return &JSONReporter{}, nil
 	case "sarif":
 		return &SARIFReporter{}, nil
+	case "markdown", "md":
+		return &MarkdownReporter{}, nil
+	case "diff":
+		return &DiffReporter{}, nil
+	case "stream-json":
+		return &StreamReporter{}, nil
 	default:
-		return nil, fmt.Errorf("unknown output format: %s (use table, json, or sarif)", format)
+		return nil, fmt.Errorf("unknown output format: %s (use table, json, sarif, markdown, diff, or stream-json)", format)
 	}
 }
