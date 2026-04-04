@@ -6,12 +6,13 @@ import (
 )
 
 type Config struct {
-	Output     string            `mapstructure:"output"`
-	FailOn     []types.Severity  `mapstructure:"fail_on"`
-	Ecosystems EcosystemsConfig  `mapstructure:"ecosystems"`
-	Checks     ChecksConfig      `mapstructure:"checks"`
-	Ignore     []string          `mapstructure:"ignore"`
-	IgnoreRules []IgnoreRule     `mapstructure:"ignore_rules"`
+	Output      string            `mapstructure:"output"`
+	Quiet       bool              `mapstructure:"quiet"`
+	FailOn      []types.Severity  `mapstructure:"fail_on"`
+	Ecosystems  EcosystemsConfig  `mapstructure:"ecosystems"`
+	Checks      ChecksConfig      `mapstructure:"checks"`
+	Ignore      []string          `mapstructure:"ignore"`
+	IgnoreRules []IgnoreRule      `mapstructure:"ignore_rules"`
 }
 
 type EcosystemsConfig struct {
@@ -44,6 +45,7 @@ type IgnoreRule struct {
 
 func SetDefaults() {
 	viper.SetDefault("output", "table")
+	viper.SetDefault("quiet", false)
 	viper.SetDefault("fail_on", []string{})
 
 	viper.SetDefault("ecosystems.npm.enabled", true)
