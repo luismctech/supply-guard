@@ -1,0 +1,9 @@
+# Default owner for everything in the repo
+* @AlbertoMZCruz
+
+# Security-critical paths require explicit review
+/internal/safefile/ @AlbertoMZCruz
+/internal/check/    @AlbertoMZCruz
+/data/              @AlbertoMZCruz
+/.github/workflows/ @AlbertoMZCruz
+/install.sh         @AlbertoMZCruz
