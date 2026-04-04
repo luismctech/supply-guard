@@ -37,7 +37,22 @@ func (e *Engine) Scan(ctx context.Context, dir string) (*types.ScanResult, error
 
 	disabledChecks := e.buildDisabledSet()
 
+	if _, err := check.GetIOCDatabase(); err != nil {
+		result.Findings = append(result.Findings, types.Finding{
+			CheckID:     types.CheckIOCMatch,
+			Severity:    types.SeverityCritical,
+			Ecosystem:   "all",
+			Title:       "IOC database failed to load",
+			Description: "The threat intelligence database could not be loaded: " + err.Error() + ". IOC, C2, and maintainer email checks are non-functional. This is a scanner integrity failure.",
+			Remediation: "Run 'supply-guard update' to refresh the IOC database, or reinstall the binary.",
+		})
+	}
+
 	for _, a := range analyzers {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("scan cancelled: %w", err)
+		}
+
 		if !e.isEcosystemEnabled(a.Ecosystem()) {
 			continue
 		}
@@ -54,6 +69,10 @@ func (e *Engine) Scan(ctx context.Context, dir string) (*types.ScanResult, error
 		}
 
 		result.Findings = append(result.Findings, findings...)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("scan cancelled: %w", err)
 	}
 
 	if !disabledChecks[string(types.CheckActionsPinning)] {

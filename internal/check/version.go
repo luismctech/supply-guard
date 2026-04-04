@@ -3,6 +3,8 @@ package check
 import (
 	"regexp"
 	"strings"
+
+	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
 // VersionRisk classifies how permissive a version range is.
@@ -37,7 +39,11 @@ type RangeClassification struct {
 	Explanation string
 }
 
-var semverExact = regexp.MustCompile(`^\d+\.\d+\.\d+(-[\w.]+)?$`)
+var (
+	semverExact    = regexp.MustCompile(`^\d+\.\d+\.\d+(-[\w.]+)?$`)
+	nugetFourPart  = regexp.MustCompile(`^\d+\.\d+\.\d+\.\d+$`)
+	mavenLoose     = regexp.MustCompile(`^\d+\.\d+(\.\d+)?$`)
+)
 
 // --- npm ---
 
@@ -194,7 +200,7 @@ func ClassifyNugetRange(version string) RangeClassification {
 		return RangeClassification{RiskPermissive, orig, "bounded range notation"}
 
 	default:
-		if semverExact.MatchString(v) || regexp.MustCompile(`^\d+\.\d+\.\d+\.\d+$`).MatchString(v) {
+		if semverExact.MatchString(v) || nugetFourPart.MatchString(v) {
 			return RangeClassification{RiskExact, orig, "exact version"}
 		}
 		return RangeClassification{RiskPermissive, orig, "non-standard version format"}
@@ -225,7 +231,7 @@ func ClassifyMavenRange(version string) RangeClassification {
 		return RangeClassification{RiskPermissive, orig, "bounded range notation"}
 
 	default:
-		if semverExact.MatchString(v) || regexp.MustCompile(`^\d+\.\d+(\.\d+)?$`).MatchString(v) {
+		if semverExact.MatchString(v) || mavenLoose.MatchString(v) {
 			return RangeClassification{RiskExact, orig, "exact version (soft requirement)"}
 		}
 		return RangeClassification{RiskPermissive, orig, "non-standard version format"}
@@ -253,9 +259,35 @@ func ClassifyGradleRange(version string) RangeClassification {
 		return RangeClassification{RiskPermissive, orig, "bounded range notation"}
 
 	default:
-		if semverExact.MatchString(v) || regexp.MustCompile(`^\d+\.\d+(\.\d+)?$`).MatchString(v) {
+		if semverExact.MatchString(v) || mavenLoose.MatchString(v) {
 			return RangeClassification{RiskExact, orig, "exact version"}
 		}
 		return RangeClassification{RiskPermissive, orig, "non-standard version format"}
+	}
+}
+
+// DefaultRiskThreshold converts a strictness string to a VersionRisk threshold.
+func DefaultRiskThreshold(strictness string) VersionRisk {
+	switch strictness {
+	case "exact":
+		return RiskConservative
+	case "permissive":
+		return RiskDangerous
+	default:
+		return RiskPermissive
+	}
+}
+
+// DefaultRangeSeverity maps a VersionRisk to a finding severity.
+func DefaultRangeSeverity(risk VersionRisk) types.Severity {
+	switch risk {
+	case RiskDangerous:
+		return types.SeverityHigh
+	case RiskPermissive:
+		return types.SeverityMedium
+	case RiskConservative:
+		return types.SeverityInfo
+	default:
+		return types.SeverityInfo
 	}
 }

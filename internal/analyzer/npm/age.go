@@ -1,7 +1,6 @@
 package npm
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,29 +9,17 @@ import (
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-func checkDependencyAge(dir string, minAgeDays int) []types.Finding {
+func checkDependencyAge(pf *projectFiles, minAgeDays int) []types.Finding {
 	var findings []types.Finding
 
-	if minAgeDays <= 0 {
+	if minAgeDays <= 0 || pf.lockDeps == nil {
 		return findings
 	}
 
-	lockPath := filepath.Join(dir, "package-lock.json")
-	data, err := os.ReadFile(lockPath)
-	if err != nil {
-		return findings
-	}
-
-	var lock packageLock
-	if err := json.Unmarshal(data, &lock); err != nil {
-		return findings
-	}
-
-	deps := extractLockDeps(&lock)
 	now := time.Now()
-	nodeModules := filepath.Join(dir, "node_modules")
+	nodeModules := filepath.Join(pf.dir, "node_modules")
 
-	for name, version := range deps {
+	for name, version := range pf.lockDeps {
 		if name == "" {
 			continue
 		}

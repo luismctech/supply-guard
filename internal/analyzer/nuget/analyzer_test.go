@@ -36,7 +36,8 @@ func TestCheckNuGetVersionPinning_Wildcard(t *testing.T) {
 </Project>`
 	os.WriteFile(filepath.Join(dir, "App.csproj"), []byte(csproj), 0644)
 
-	findings := checkNuGetVersionPinning(dir, "conservative")
+	nf := loadNuGetProjectFiles(dir)
+	findings := checkNuGetVersionPinningCached(nf, "conservative")
 	found := false
 	for _, f := range findings {
 		if f.Package == "Newtonsoft.Json" && f.CheckID == types.CheckVersionRange {

@@ -3,6 +3,8 @@ package check
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -30,12 +32,44 @@ var (
 	iocDBErr  error
 )
 
+// ResetIOCForTesting resets the IOC singleton so tests can exercise
+// different loading paths. Must only be called from tests.
+func ResetIOCForTesting() {
+	iocDBOnce = sync.Once{}
+	iocDB = nil
+	iocDBErr = nil
+}
+
 func GetIOCDatabase() (*IOCDatabase, error) {
 	iocDBOnce.Do(func() {
 		iocDB = &IOCDatabase{}
+		if loaded := loadIOCFromDisk(); loaded != nil {
+			iocDB = loaded
+			return
+		}
 		iocDBErr = json.Unmarshal(data.IOCsJSON, iocDB)
 	})
 	return iocDB, iocDBErr
+}
+
+func loadIOCFromDisk() *IOCDatabase {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	path := filepath.Join(home, ".config", "supplyguard", "iocs.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var db IOCDatabase
+	if err := json.Unmarshal(raw, &db); err != nil {
+		return nil
+	}
+	if db.Version == "" {
+		return nil
+	}
+	return &db
 }
 
 func CheckPackageIOC(ecosystem, name, version string) (*MaliciousPackage, error) {
@@ -98,10 +132,10 @@ func CheckMaintainerEmail(email string) (bool, string) {
 	return false, ""
 }
 
-func CheckC2Domain(content string) []string {
+func CheckC2Domain(content string) ([]string, error) {
 	db, err := GetIOCDatabase()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("IOC database unavailable: %w", err)
 	}
 
 	var matches []string
@@ -111,5 +145,5 @@ func CheckC2Domain(content string) []string {
 			matches = append(matches, domain)
 		}
 	}
-	return matches
+	return matches, nil
 }

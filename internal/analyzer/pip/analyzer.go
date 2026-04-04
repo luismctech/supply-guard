@@ -38,14 +38,15 @@ func (a *PipAnalyzer) Detect(dir string) bool {
 }
 
 func (a *PipAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Config) ([]types.Finding, error) {
+	pf := loadPipProjectFiles(dir)
 	var findings []types.Finding
 
 	findings = append(findings, checkPipLockfile(dir)...)
-	findings = append(findings, checkPipIOCs(dir)...)
-	findings = append(findings, checkPipTyposquatting(dir)...)
+	findings = append(findings, checkPipIOCsCached(pf)...)
+	findings = append(findings, checkPipTyposquattingCached(pf)...)
 	findings = append(findings, checkPthFiles(dir)...)
 	findings = append(findings, checkPipHardening(dir)...)
-	findings = append(findings, checkPipVersionRanges(dir, cfg.Checks.VersionRangeStrictness)...)
+	findings = append(findings, checkPipVersionRangesCached(pf, cfg.Checks.VersionRangeStrictness)...)
 	findings = append(findings, checkPipNetworkCalls(dir)...)
 	findings = append(findings, checkPipProvenance(dir)...)
 

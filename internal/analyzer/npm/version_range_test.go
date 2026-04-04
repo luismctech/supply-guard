@@ -22,7 +22,8 @@ func TestCheckVersionRanges_CaretInProduction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	findings := checkVersionRanges(dir, "conservative")
+	pf := loadProjectFiles(dir)
+	findings := checkVersionRanges(pf, "conservative")
 
 	found := map[string]bool{}
 	for _, f := range findings {
@@ -52,7 +53,8 @@ func TestCheckVersionRanges_DangerousVersions(t *testing.T) {
 }`
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
-	findings := checkVersionRanges(dir, "conservative")
+	pf := loadProjectFiles(dir)
+	findings := checkVersionRanges(pf, "conservative")
 
 	if len(findings) != 3 {
 		t.Errorf("expected 3 dangerous findings, got %d", len(findings))
@@ -70,10 +72,12 @@ func TestCheckVersionRanges_LockfileReducesSeverity(t *testing.T) {
 	pkg := `{"name": "test", "dependencies": {"evil": "*"}}`
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
-	findingsNoLock := checkVersionRanges(dir, "conservative")
+	pfNoLock := loadProjectFiles(dir)
+	findingsNoLock := checkVersionRanges(pfNoLock, "conservative")
 
 	os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte(`{"lockfileVersion": 3}`), 0644)
-	findingsWithLock := checkVersionRanges(dir, "conservative")
+	pfWithLock := loadProjectFiles(dir)
+	findingsWithLock := checkVersionRanges(pfWithLock, "conservative")
 
 	if len(findingsNoLock) == 0 || len(findingsWithLock) == 0 {
 		t.Fatal("expected findings in both cases")
@@ -93,7 +97,8 @@ func TestCheckVersionRanges_StrictnessPermissive(t *testing.T) {
 	pkg := `{"name": "test", "dependencies": {"dep": "^1.0.0", "safe": "1.0.0"}}`
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
-	findings := checkVersionRanges(dir, "permissive")
+	pf := loadProjectFiles(dir)
+	findings := checkVersionRanges(pf, "permissive")
 
 	for _, f := range findings {
 		if f.Package == "dep" {

@@ -1,11 +1,11 @@
 package pip
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -72,7 +72,7 @@ func parseRequirementsTxt(path string) []pipDependency {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++

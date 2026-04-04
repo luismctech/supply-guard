@@ -5,37 +5,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-// checkPthFiles detects .pth files that can auto-execute code when Python starts.
-// This was the attack vector used by TeamPCP in the LiteLLM compromise.
 func checkPthFiles(dir string) []types.Finding {
 	var findings []types.Finding
 
-	// Look for .pth files in the project directory
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		if d.IsDir() {
-			name := d.Name()
-			if name == ".git" || name == "__pycache__" || name == ".tox" || name == "node_modules" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if d.Type()&os.ModeSymlink != 0 {
-			return nil
-		}
-
+	skipDirs := []string{".git", "__pycache__", ".tox", "node_modules", ".venv", "venv"}
+	_ = safefile.WalkDir(dir, skipDirs, func(path string, d os.DirEntry) error {
 		if !strings.HasSuffix(d.Name(), ".pth") {
 			return nil
 		}
 
-		content, err := os.ReadFile(path)
+		content, err := safefile.ReadFile(path)
 		if err != nil {
 			return nil
 		}
@@ -45,7 +28,6 @@ func checkPthFiles(dir string) []types.Finding {
 			relPath = path
 		}
 
-		// .pth files with "import" lines execute code on Python startup
 		lines := strings.Split(string(content), "\n")
 		for i, line := range lines {
 			trimmed := strings.TrimSpace(line)
@@ -66,10 +48,6 @@ func checkPthFiles(dir string) []types.Finding {
 
 		return nil
 	})
-
-	if err != nil {
-		return findings
-	}
 
 	return findings
 }

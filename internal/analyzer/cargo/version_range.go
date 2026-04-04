@@ -1,13 +1,13 @@
 package cargo
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -21,8 +21,8 @@ func checkCargoVersionRanges(dir string, strictness string) []types.Finding {
 	}
 	defer f.Close()
 
-	threshold := cargoRiskThreshold(strictness)
-	scanner := bufio.NewScanner(f)
+	threshold := check.DefaultRiskThreshold(strictness)
+	scanner := safefile.NewScanner(f)
 	lineNum := 0
 	inDeps := false
 
@@ -51,7 +51,7 @@ func checkCargoVersionRanges(dir string, strictness string) []types.Finding {
 
 		findings = append(findings, types.Finding{
 			CheckID:   types.CheckVersionRange,
-			Severity:  cargoRangeSeverity(cl.Risk),
+			Severity:  check.DefaultRangeSeverity(cl.Risk),
 			Ecosystem: "cargo",
 			Package:   name,
 			Version:   version,
@@ -102,26 +102,3 @@ func parseCargoDepLine(line string) (string, string) {
 	return "", ""
 }
 
-func cargoRangeSeverity(risk check.VersionRisk) types.Severity {
-	switch risk {
-	case check.RiskDangerous:
-		return types.SeverityHigh
-	case check.RiskPermissive:
-		return types.SeverityMedium
-	case check.RiskConservative:
-		return types.SeverityInfo
-	default:
-		return types.SeverityInfo
-	}
-}
-
-func cargoRiskThreshold(strictness string) check.VersionRisk {
-	switch strictness {
-	case "exact":
-		return check.RiskConservative
-	case "permissive":
-		return check.RiskDangerous
-	default:
-		return check.RiskPermissive
-	}
-}

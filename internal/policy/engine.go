@@ -64,23 +64,23 @@ func (e *Engine) FilterFindings(findings []types.Finding) []types.Finding {
 	return filtered
 }
 
-func checkIDToRuleID(checkID types.CheckID) string {
-	mapping := map[types.CheckID]string{
-		types.CheckLockfileIntegrity:  "require-lockfile",
-		types.CheckInstallScripts:    "no-install-scripts",
-		types.CheckIOCMatch:          "block-known-malicious",
-		types.CheckDependencyAge:     "dependency-age",
-		types.CheckPhantomDependency: "no-phantom-deps",
-		types.CheckTyposquatting:     "typosquatting-check",
-		types.CheckConfigHardening:   "hardened-config",
-		types.CheckActionsPinning:    "actions-sha-pinning",
-		types.CheckProvenance:        "provenance-verification",
-		types.CheckNetworkCalls:      "no-network-calls",
-		types.CheckVersionRange:      "version-range-permissiveness",
-		types.CheckCIInstall:         "ci-install-audit",
-	}
+var checkIDMapping = map[types.CheckID]string{
+	types.CheckLockfileIntegrity:  "require-lockfile",
+	types.CheckInstallScripts:    "no-install-scripts",
+	types.CheckIOCMatch:          "block-known-malicious",
+	types.CheckDependencyAge:     "dependency-age",
+	types.CheckPhantomDependency: "no-phantom-deps",
+	types.CheckTyposquatting:     "typosquatting-check",
+	types.CheckConfigHardening:   "hardened-config",
+	types.CheckActionsPinning:    "actions-sha-pinning",
+	types.CheckProvenance:        "provenance-verification",
+	types.CheckNetworkCalls:      "no-network-calls",
+	types.CheckVersionRange:      "version-range-permissiveness",
+	types.CheckCIInstall:         "ci-install-audit",
+}
 
-	if id, ok := mapping[checkID]; ok {
+func checkIDToRuleID(checkID types.CheckID) string {
+	if id, ok := checkIDMapping[checkID]; ok {
 		return id
 	}
 	return string(checkID)

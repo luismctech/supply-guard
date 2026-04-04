@@ -1,22 +1,13 @@
 package npm
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-type packageJSON struct {
-	Name            string            `json:"name"`
-	Dependencies    map[string]string `json:"dependencies"`
-	DevDependencies map[string]string `json:"devDependencies"`
-}
-
 type packageLock struct {
-	LockfileVersion int                        `json:"lockfileVersion"`
+	LockfileVersion int                       `json:"lockfileVersion"`
 	Packages        map[string]lockPackageInfo `json:"packages"`
 	Dependencies    map[string]lockDepInfo     `json:"dependencies"`
 }
@@ -31,20 +22,14 @@ type lockDepInfo struct {
 	Resolved string `json:"resolved"`
 }
 
-func checkLockfile(dir string) []types.Finding {
+func checkLockfile(pf *projectFiles) []types.Finding {
 	var findings []types.Finding
 
-	pkgPath := filepath.Join(dir, "package.json")
-	lockPath := filepath.Join(dir, "package-lock.json")
-
-	_, pkgErr := os.Stat(pkgPath)
-	_, lockErr := os.Stat(lockPath)
-
-	if pkgErr != nil {
+	if pf.pkg == nil {
 		return findings
 	}
 
-	if lockErr != nil {
+	if pf.lock == nil {
 		findings = append(findings, types.Finding{
 			CheckID:     types.CheckLockfileIntegrity,
 			Severity:    types.SeverityCritical,
@@ -57,46 +42,9 @@ func checkLockfile(dir string) []types.Finding {
 		return findings
 	}
 
-	pkgData, err := os.ReadFile(pkgPath)
-	if err != nil {
-		return findings
-	}
-	lockData, err := os.ReadFile(lockPath)
-	if err != nil {
-		return findings
-	}
-
-	var pkg packageJSON
-	if err := json.Unmarshal(pkgData, &pkg); err != nil {
-		return findings
-	}
-
-	var lock packageLock
-	if err := json.Unmarshal(lockData, &lock); err != nil {
-		findings = append(findings, types.Finding{
-			CheckID:     types.CheckLockfileIntegrity,
-			Severity:    types.SeverityHigh,
-			Ecosystem:   "npm",
-			File:        "package-lock.json",
-			Title:       "Corrupted lockfile",
-			Description: "package-lock.json cannot be parsed. It may have been tampered with.",
-			Remediation: "Delete package-lock.json and regenerate with 'npm install'",
-		})
-		return findings
-	}
-
-	allDeps := make(map[string]string)
-	for name, version := range pkg.Dependencies {
-		allDeps[name] = version
-	}
-	for name, version := range pkg.DevDependencies {
-		allDeps[name] = version
-	}
-
-	lockDeps := extractLockDeps(&lock)
-
+	allDeps := pf.allDeps()
 	for name := range allDeps {
-		if _, ok := lockDeps[name]; !ok {
+		if _, ok := pf.lockDeps[name]; !ok {
 			findings = append(findings, types.Finding{
 				CheckID:     types.CheckLockfileIntegrity,
 				Severity:    types.SeverityHigh,

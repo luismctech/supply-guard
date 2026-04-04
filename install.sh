@@ -77,6 +77,28 @@ main() {
 
     download "$URL" "${TMPDIR}/${FILENAME}"
 
+    info "Verifying checksum..."
+    CHECKSUM_URL="https://github.com/${REPO}/releases/download/${VERSION}/checksums.txt"
+    download "$CHECKSUM_URL" "${TMPDIR}/checksums.txt"
+
+    EXPECTED_HASH=$(grep "${FILENAME}" "${TMPDIR}/checksums.txt" | awk '{print $1}')
+    if [ -z "$EXPECTED_HASH" ]; then
+        error "Could not find checksum for ${FILENAME} in checksums.txt"
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        ACTUAL_HASH=$(sha256sum "${TMPDIR}/${FILENAME}" | awk '{print $1}')
+    elif command -v shasum >/dev/null 2>&1; then
+        ACTUAL_HASH=$(shasum -a 256 "${TMPDIR}/${FILENAME}" | awk '{print $1}')
+    else
+        error "Neither sha256sum nor shasum found. Cannot verify checksum."
+    fi
+
+    if [ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]; then
+        error "Checksum mismatch! Expected: ${EXPECTED_HASH}, Got: ${ACTUAL_HASH}. The download may have been tampered with."
+    fi
+    ok "Checksum verified"
+
     info "Extracting..."
     if [ "$EXT" = "zip" ]; then
         unzip -q "${TMPDIR}/${FILENAME}" -d "${TMPDIR}"

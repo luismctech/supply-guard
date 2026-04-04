@@ -1,7 +1,6 @@
 package cargo
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/AlbertoMZCruz/supply-guard/internal/analyzer"
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/config"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -36,14 +36,15 @@ func (a *CargoAnalyzer) Detect(dir string) bool {
 }
 
 func (a *CargoAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Config) ([]types.Finding, error) {
+	cf := loadCargoProjectFiles(dir)
 	var findings []types.Finding
 
 	findings = append(findings, checkCargoLockfile(dir)...)
-	findings = append(findings, checkCargoIOCs(dir)...)
+	findings = append(findings, checkCargoIOCs(cf)...)
 	findings = append(findings, checkCargoBuildScripts(dir)...)
 	findings = append(findings, checkCargoVersionRanges(dir, cfg.Checks.VersionRangeStrictness)...)
 	findings = append(findings, checkCargoProvenance(dir)...)
-	findings = append(findings, checkCargoTyposquatting(dir)...)
+	findings = append(findings, checkCargoTyposquatting(cf)...)
 
 	return findings, nil
 }
@@ -87,7 +88,7 @@ func parseCargoLock(path string) []cargoDep {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	var currentName, currentVersion string
 	inPackage := false
 
@@ -132,13 +133,10 @@ func extractTomlString(line string) string {
 	return line[idx+1 : idx+1+end]
 }
 
-func checkCargoIOCs(dir string) []types.Finding {
+func checkCargoIOCs(cf *cargoProjectFiles) []types.Finding {
 	var findings []types.Finding
 
-	lockPath := filepath.Join(dir, "Cargo.lock")
-	deps := parseCargoLock(lockPath)
-
-	for _, dep := range deps {
+	for _, dep := range cf.deps {
 		match, err := check.CheckPackageIOC("cargo", dep.Name, dep.Version)
 		if err != nil {
 			continue
@@ -165,7 +163,7 @@ func checkCargoBuildScripts(dir string) []types.Finding {
 	var findings []types.Finding
 
 	buildScript := filepath.Join(dir, "build.rs")
-	data, err := os.ReadFile(buildScript)
+	data, err := safefile.ReadFile(buildScript)
 	if err != nil {
 		return findings
 	}

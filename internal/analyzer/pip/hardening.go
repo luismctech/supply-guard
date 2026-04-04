@@ -1,11 +1,11 @@
 package pip
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -53,7 +53,7 @@ func checkPipConfSecurity(path string) []types.Finding {
 	defer f.Close()
 
 	hasRequireHashes := false
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "require-hashes") && strings.Contains(line, "true") {
@@ -83,7 +83,7 @@ func usesHashes(reqPath string) bool {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), "--hash=") {
 			return true

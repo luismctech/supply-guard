@@ -11,6 +11,7 @@ import (
 	"github.com/AlbertoMZCruz/supply-guard/internal/analyzer"
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/config"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -36,11 +37,13 @@ func (a *MavenAnalyzer) Detect(dir string) bool {
 }
 
 func (a *MavenAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Config) ([]types.Finding, error) {
+	mf := loadMavenProjectFiles(dir)
 	var findings []types.Finding
 
-	if _, err := os.Stat(filepath.Join(dir, "pom.xml")); err == nil {
-		findings = append(findings, analyzeMaven(dir)...)
-		findings = append(findings, checkMavenVersionRanges(dir, cfg.Checks.VersionRangeStrictness)...)
+	if mf.hasPom {
+		findings = append(findings, analyzeMavenPom(mf)...)
+		findings = append(findings, checkMavenVersionRanges(mf, cfg.Checks.VersionRangeStrictness)...)
+		findings = append(findings, checkMavenTyposquatting(mf)...)
 	}
 
 	if isGradle(dir) {
@@ -49,7 +52,6 @@ func (a *MavenAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Con
 	}
 
 	findings = append(findings, checkMavenNetworkCalls(dir)...)
-	findings = append(findings, checkMavenTyposquatting(dir)...)
 
 	return findings, nil
 }
@@ -77,21 +79,10 @@ type pomRepository struct {
 	URL string `xml:"url"`
 }
 
-func analyzeMaven(dir string) []types.Finding {
+func analyzeMavenPom(mf *mavenProjectFiles) []types.Finding {
 	var findings []types.Finding
+	pom := mf.pom
 
-	pomPath := filepath.Join(dir, "pom.xml")
-	data, err := os.ReadFile(pomPath)
-	if err != nil {
-		return findings
-	}
-
-	var pom pomFile
-	if err := xml.Unmarshal(data, &pom); err != nil {
-		return findings
-	}
-
-	// Check for dependency confusion: public repos mixed with private
 	for _, repo := range pom.Repositories {
 		if strings.Contains(repo.URL, "http://") {
 			findings = append(findings, types.Finding{
@@ -129,9 +120,8 @@ func analyzeMaven(dir string) []types.Finding {
 		}
 	}
 
-	// Check for verification metadata
-	verificationPath := filepath.Join(dir, "gradle", "verification-metadata.xml")
-	mavenWrapperPath := filepath.Join(dir, ".mvn", "maven.config")
+	verificationPath := filepath.Join(mf.dir, "gradle", "verification-metadata.xml")
+	mavenWrapperPath := filepath.Join(mf.dir, ".mvn", "maven.config")
 	if _, err := os.Stat(verificationPath); err != nil {
 		if _, err := os.Stat(mavenWrapperPath); err != nil {
 			findings = append(findings, types.Finding{
@@ -194,7 +184,7 @@ func analyzeGradle(dir string) []types.Finding {
 	// Scan build files for HTTP repositories
 	for _, buildFile := range []string{"build.gradle", "build.gradle.kts"} {
 		buildPath := filepath.Join(dir, buildFile)
-		data, err := os.ReadFile(buildPath)
+		data, err := safefile.ReadFile(buildPath)
 		if err != nil {
 			continue
 		}

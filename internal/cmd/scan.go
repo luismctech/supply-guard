@@ -55,10 +55,23 @@ func runScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot resolve path: %w", err)
 	}
 
+	linfo, err := os.Lstat(absDir)
+	if err != nil {
+		return fmt.Errorf("not a valid directory: %s", absDir)
+	}
+	if linfo.Mode()&os.ModeSymlink != 0 {
+		fmt.Fprintf(os.Stderr, "⚠  Warning: scan target %s is a symlink. Resolving to real path.\n", absDir)
+		absDir, err = filepath.EvalSymlinks(absDir)
+		if err != nil {
+			return fmt.Errorf("cannot resolve symlink: %w", err)
+		}
+	}
 	info, err := os.Stat(absDir)
 	if err != nil || !info.IsDir() {
 		return fmt.Errorf("not a valid directory: %s", absDir)
 	}
+
+	WarnIfUntrustedConfig(absDir)
 
 	cfg, err := config.Load()
 	if err != nil {

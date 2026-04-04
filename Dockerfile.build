@@ -1,6 +1,6 @@
 FROM golang:1.26-alpine AS builder
 
-RUN apk add --no-cache git
+RUN apk add --no-cache
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -19,9 +19,9 @@ RUN CGO_ENABLED=0 go build \
       -X github.com/AlbertoMZCruz/supply-guard/internal/version.Date=${DATE}" \
     -o /supply-guard ./cmd/supply-guard
 
-FROM alpine:3.21
+FROM alpine:3.21@sha256:22e0ec13c0db6b3e1ba3280e831fc50ba7bffe58e81f31670a64b1afede247bc
 
-RUN apk add --no-cache ca-certificates git && \
+RUN apk add --no-cache ca-certificates && \
     adduser -D -h /home/supplyguard supplyguard
 
 COPY --from=builder /supply-guard /usr/local/bin/supply-guard

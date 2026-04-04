@@ -1,35 +1,23 @@
 package npm
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-func checkVersionRanges(dir string, strictness string) []types.Finding {
+func checkVersionRanges(pf *projectFiles, strictness string) []types.Finding {
 	var findings []types.Finding
 
-	pkgPath := filepath.Join(dir, "package.json")
-	data, err := os.ReadFile(pkgPath)
-	if err != nil {
+	if pf.pkg == nil {
 		return findings
 	}
 
-	var pkg packageJSON
-	if err := json.Unmarshal(data, &pkg); err != nil {
-		return findings
-	}
+	hasLockfile := pf.lock != nil
+	threshold := check.DefaultRiskThreshold(strictness)
 
-	_, lockErr := os.Stat(filepath.Join(dir, "package-lock.json"))
-	hasLockfile := lockErr == nil
-
-	threshold := riskThreshold(strictness)
-
-	for name, version := range pkg.Dependencies {
+	for name, version := range pf.pkg.Dependencies {
 		cl := check.ClassifyNpmRange(version)
 		if cl.Risk < threshold {
 			continue
@@ -51,7 +39,7 @@ func checkVersionRanges(dir string, strictness string) []types.Finding {
 		})
 	}
 
-	for name, version := range pkg.DevDependencies {
+	for name, version := range pf.pkg.DevDependencies {
 		cl := check.ClassifyNpmRange(version)
 		if cl.Risk < threshold {
 			continue
@@ -109,13 +97,3 @@ func suggestFix(version string) string {
 	return version
 }
 
-func riskThreshold(strictness string) check.VersionRisk {
-	switch strictness {
-	case "exact":
-		return check.RiskConservative
-	case "permissive":
-		return check.RiskDangerous
-	default:
-		return check.RiskPermissive
-	}
-}

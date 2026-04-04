@@ -12,6 +12,7 @@ import (
 	"github.com/AlbertoMZCruz/supply-guard/internal/analyzer"
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/config"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -54,14 +55,15 @@ func (a *NuGetAnalyzer) Detect(dir string) bool {
 }
 
 func (a *NuGetAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Config) ([]types.Finding, error) {
+	nf := loadNuGetProjectFiles(dir)
 	var findings []types.Finding
 
 	findings = append(findings, checkNuGetLockfile(dir)...)
 	findings = append(findings, checkNuGetIOCs(dir)...)
-	findings = append(findings, checkNuGetVersionPinning(dir, cfg.Checks.VersionRangeStrictness)...)
+	findings = append(findings, checkNuGetVersionPinningCached(nf, cfg.Checks.VersionRangeStrictness)...)
 	findings = append(findings, checkNuGetNetworkCalls(dir)...)
 	findings = append(findings, checkNuGetProvenance(dir)...)
-	findings = append(findings, checkNuGetTyposquatting(dir)...)
+	findings = append(findings, checkNuGetTyposquattingCached(nf)...)
 
 	return findings, nil
 }
@@ -89,20 +91,8 @@ func checkNuGetLockfile(dir string) []types.Finding {
 
 func findCsprojFiles(dir string) []string {
 	var files []string
-	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			name := d.Name()
-			if name == ".git" || name == "node_modules" || name == "bin" || name == "obj" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if d.Type()&os.ModeSymlink != 0 {
-			return nil
-		}
+	skipDirs := []string{".git", "node_modules", "bin", "obj"}
+	_ = safefile.WalkDir(dir, skipDirs, func(path string, d os.DirEntry) error {
 		if strings.HasSuffix(d.Name(), ".csproj") || strings.HasSuffix(d.Name(), ".fsproj") {
 			files = append(files, path)
 		}
@@ -125,7 +115,7 @@ func checkNuGetIOCs(dir string) []types.Finding {
 	var findings []types.Finding
 
 	lockPath := filepath.Join(dir, "packages.lock.json")
-	data, err := os.ReadFile(lockPath)
+	data, err := safefile.ReadFile(lockPath)
 	if err != nil {
 		return checkNuGetIOCsFromCsproj(dir)
 	}
@@ -210,7 +200,7 @@ func checkNuGetIOCsFromCsproj(dir string) []types.Finding {
 }
 
 func parseCsproj(path string) []csprojPackageRef {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return nil
 	}
@@ -227,15 +217,13 @@ func parseCsproj(path string) []csprojPackageRef {
 	return refs
 }
 
-func checkNuGetVersionPinning(dir string, strictness string) []types.Finding {
+func checkNuGetVersionPinningCached(nf *nugetProjectFiles, strictness string) []types.Finding {
 	var findings []types.Finding
 
-	threshold := nugetRiskThreshold(strictness)
+	threshold := check.DefaultRiskThreshold(strictness)
 
-	csprojFiles, _ := filepath.Glob(filepath.Join(dir, "*.csproj"))
-	for _, csprojPath := range csprojFiles {
-		refs := parseCsproj(csprojPath)
-		relPath, _ := filepath.Rel(dir, csprojPath)
+	for csprojPath, refs := range nf.csprojMap {
+		relPath, _ := filepath.Rel(nf.dir, csprojPath)
 		if relPath == "" {
 			relPath = csprojPath
 		}
@@ -245,7 +233,7 @@ func checkNuGetVersionPinning(dir string, strictness string) []types.Finding {
 			if cl.Risk < threshold {
 				continue
 			}
-			sev := nugetRangeSeverity(cl.Risk)
+			sev := check.DefaultRangeSeverity(cl.Risk)
 			findings = append(findings, types.Finding{
 				CheckID:   types.CheckVersionRange,
 				Severity:  sev,
@@ -266,26 +254,3 @@ func checkNuGetVersionPinning(dir string, strictness string) []types.Finding {
 	return findings
 }
 
-func nugetRangeSeverity(risk check.VersionRisk) types.Severity {
-	switch risk {
-	case check.RiskDangerous:
-		return types.SeverityHigh
-	case check.RiskPermissive:
-		return types.SeverityMedium
-	case check.RiskConservative:
-		return types.SeverityInfo
-	default:
-		return types.SeverityInfo
-	}
-}
-
-func nugetRiskThreshold(strictness string) check.VersionRisk {
-	switch strictness {
-	case "exact":
-		return check.RiskConservative
-	case "permissive":
-		return check.RiskDangerous
-	default:
-		return check.RiskPermissive
-	}
-}

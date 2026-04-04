@@ -1,11 +1,12 @@
 package check
 
 import (
-	"bufio"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 )
 
 type ProvenanceIssue struct {
@@ -18,7 +19,7 @@ type ProvenanceIssue struct {
 // CheckNpmIntegrity scans package-lock.json for packages missing SRI integrity hashes.
 func CheckNpmIntegrity(dir string) []ProvenanceIssue {
 	lockPath := filepath.Join(dir, "package-lock.json")
-	data, err := os.ReadFile(lockPath)
+	data, err := safefile.ReadFile(lockPath)
 	if err != nil {
 		return nil
 	}
@@ -107,7 +108,7 @@ func CheckPipHashes(dir string) []ProvenanceIssue {
 			continue
 		}
 
-		scanner := bufio.NewScanner(f)
+		scanner := safefile.NewScanner(f)
 		hasAnyHash := false
 		var unhashed []string
 		lineNum := 0
@@ -160,7 +161,7 @@ func checkPipGitSources(dir, reqFile string, issues *[]ProvenanceIssue) {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -202,7 +203,7 @@ func CheckCargoChecksums(dir string) []ProvenanceIssue {
 	defer f.Close()
 
 	var issues []ProvenanceIssue
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	var currentName, currentSource string
 	hasChecksum := false
 	inPackage := false
@@ -268,7 +269,7 @@ func CheckCargoChecksums(dir string) []ProvenanceIssue {
 // CheckNuGetContentHash scans packages.lock.json for packages missing contentHash.
 func CheckNuGetContentHash(dir string) []ProvenanceIssue {
 	lockPath := filepath.Join(dir, "packages.lock.json")
-	data, err := os.ReadFile(lockPath)
+	data, err := safefile.ReadFile(lockPath)
 	if err != nil {
 		return nil
 	}
@@ -325,7 +326,7 @@ func CheckCIProvenanceWorkflow(dir string) *ProvenanceIssue {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(workflowDir, name))
+		data, err := safefile.ReadFile(filepath.Join(workflowDir, name))
 		if err != nil {
 			continue
 		}

@@ -31,7 +31,8 @@ func TestCheckPipVersionRanges_UnpinnedDeps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	findings := checkPipVersionRanges(dir, "conservative")
+	pf := loadPipProjectFiles(dir)
+	findings := checkPipVersionRangesCached(pf, "conservative")
 	if len(findings) < 2 {
 		t.Errorf("expected at least 2 version range findings, got %d", len(findings))
 	}
@@ -44,7 +45,8 @@ func TestCheckPipVersionRanges_AllPinned(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	findings := checkPipVersionRanges(dir, "conservative")
+	pf := loadPipProjectFiles(dir)
+	findings := checkPipVersionRangesCached(pf, "conservative")
 	if len(findings) != 0 {
 		t.Errorf("expected 0 findings for pinned deps, got %d", len(findings))
 	}

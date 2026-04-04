@@ -1,10 +1,11 @@
 package check
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 )
 
 type HardeningResult struct {
@@ -28,7 +29,7 @@ func CheckNpmrcHardening(dir string) *HardeningResult {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "#") || line == "" {
@@ -100,7 +101,7 @@ func scanWorkflowFile(path string) []ActionPinIssue {
 	relPath := path
 	var issues []ActionPinIssue
 
-	scanner := bufio.NewScanner(f)
+	scanner := safefile.NewScanner(f)
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++

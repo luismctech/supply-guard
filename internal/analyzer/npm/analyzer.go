@@ -33,41 +33,29 @@ func (a *NpmAnalyzer) Detect(dir string) bool {
 }
 
 func (a *NpmAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Config) ([]types.Finding, error) {
+	pf := loadProjectFiles(dir)
 	var findings []types.Finding
 
-	// SG001: Lockfile integrity
-	lockFindings := checkLockfile(dir)
-	findings = append(findings, lockFindings...)
+	for _, w := range pf.warnings {
+		findings = append(findings, types.Finding{
+			CheckID:     types.CheckLockfileIntegrity,
+			Severity:    types.SeverityInfo,
+			Ecosystem:   "npm",
+			Title:       "Parse warning",
+			Description: w,
+			Remediation: "Check the file for syntax errors or corruption.",
+		})
+	}
 
-	// SG002: Install scripts detection
-	scriptFindings := checkInstallScripts(dir)
-	findings = append(findings, scriptFindings...)
+	findings = append(findings, checkLockfile(pf)...)
+	findings = append(findings, checkInstallScripts(pf)...)
+	findings = append(findings, checkIOCs(pf)...)
+	findings = append(findings, checkDependencyAge(pf, cfg.Checks.DependencyAgeDays)...)
+	findings = append(findings, checkPhantomDeps(pf)...)
+	findings = append(findings, checkTyposquatting(pf)...)
+	findings = append(findings, checkVersionRanges(pf, cfg.Checks.VersionRangeStrictness)...)
+	findings = append(findings, checkMaintainerEmails(dir)...)
 
-	// SG003: IOC matching
-	iocFindings := checkIOCs(dir)
-	findings = append(findings, iocFindings...)
-
-	// SG004: Dependency age (only if lockfile exists)
-	ageFindings := checkDependencyAge(dir, cfg.Checks.DependencyAgeDays)
-	findings = append(findings, ageFindings...)
-
-	// SG005: Phantom dependencies
-	phantomFindings := checkPhantomDeps(dir)
-	findings = append(findings, phantomFindings...)
-
-	// SG006: Typosquatting
-	typoFindings := checkTyposquatting(dir)
-	findings = append(findings, typoFindings...)
-
-	// SG011: Version range permissiveness
-	rangeFindings := checkVersionRanges(dir, cfg.Checks.VersionRangeStrictness)
-	findings = append(findings, rangeFindings...)
-
-	// SG003: Suspicious maintainer emails (IOC sub-check)
-	maintainerFindings := checkMaintainerEmails(dir)
-	findings = append(findings, maintainerFindings...)
-
-	// SG007: Provenance - npm integrity hashes
 	npmProvIssues := check.CheckNpmIntegrity(dir)
 	for _, issue := range npmProvIssues {
 		sev := types.SeverityMedium
@@ -86,7 +74,6 @@ func (a *NpmAnalyzer) Analyze(ctx context.Context, dir string, cfg *config.Confi
 		})
 	}
 
-	// SG008: Config hardening
 	hardeningResult := check.CheckNpmrcHardening(dir)
 	for _, missing := range hardeningResult.Missing {
 		findings = append(findings, types.Finding{

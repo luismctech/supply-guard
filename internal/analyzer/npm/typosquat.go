@@ -1,10 +1,7 @@
 package npm
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
@@ -12,26 +9,12 @@ import (
 
 const defaultMaxTypoDistance = 2
 
-func checkTyposquatting(dir string) []types.Finding {
+func checkTyposquatting(pf *projectFiles) []types.Finding {
 	var findings []types.Finding
 
-	pkgPath := filepath.Join(dir, "package.json")
-	data, err := os.ReadFile(pkgPath)
-	if err != nil {
+	allDeps := pf.allDeps()
+	if allDeps == nil {
 		return findings
-	}
-
-	var pkg packageJSON
-	if err := json.Unmarshal(data, &pkg); err != nil {
-		return findings
-	}
-
-	allDeps := make(map[string]string)
-	for k, v := range pkg.Dependencies {
-		allDeps[k] = v
-	}
-	for k, v := range pkg.DevDependencies {
-		allDeps[k] = v
 	}
 
 	for name := range allDeps {

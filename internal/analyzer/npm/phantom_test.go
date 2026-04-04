@@ -78,7 +78,8 @@ func TestCheckPhantomDeps_DetectsUnused(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	findings := checkPhantomDeps(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkPhantomDeps(pf)
 	found := false
 	for _, f := range findings {
 		if f.Package == "unused-lib" {

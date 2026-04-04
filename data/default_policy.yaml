@@ -17,13 +17,8 @@ rules:
       min_age_days: 7
 
   - id: no-phantom-deps
-    description: "Flag dependencies in lockfile not imported in source code"
+    description: "Flag dependencies in package.json not imported in source code"
     severity: low
-    enabled: true
-
-  - id: require-pinned-versions
-    description: "Require exact version pinning in lockfiles"
-    severity: medium
     enabled: true
 
   - id: block-known-malicious

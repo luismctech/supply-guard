@@ -1,6 +1,7 @@
 package check
 
 import (
+	"net"
 	"regexp"
 	"strings"
 )
@@ -110,15 +111,18 @@ func ScanForNetworkCalls(content, ecosystem string) []NetworkIssue {
 
 	var issues []NetworkIssue
 	lower := strings.ToLower(content)
+	lines := strings.Split(lower, "\n")
 
 	for _, cmd := range downloadCommands {
-		if strings.Contains(lower, strings.ToLower(cmd)) {
-			if !containsSafeRegistry(content) {
+		lowerCmd := strings.ToLower(cmd)
+		for _, line := range lines {
+			if strings.Contains(line, lowerCmd) && !lineMentionsSafeRegistry(line) {
 				issues = append(issues, NetworkIssue{
 					Pattern:  strings.TrimSpace(cmd),
 					Category: "download_cmd",
 					Risk:     "high",
 				})
+				break
 			}
 		}
 	}
@@ -181,7 +185,7 @@ func ScanForNetworkCalls(content, ecosystem string) []NetworkIssue {
 		}
 	}
 
-	c2Matches := CheckC2Domain(content)
+	c2Matches, _ := CheckC2Domain(content)
 	for _, domain := range c2Matches {
 		issues = append(issues, NetworkIssue{
 			Pattern:  domain,
@@ -193,10 +197,9 @@ func ScanForNetworkCalls(content, ecosystem string) []NetworkIssue {
 	return issues
 }
 
-func containsSafeRegistry(content string) bool {
-	lower := strings.ToLower(content)
+func lineMentionsSafeRegistry(line string) bool {
 	for _, reg := range safeRegistries {
-		if strings.Contains(lower, reg) {
+		if strings.Contains(line, reg) {
 			return true
 		}
 	}
@@ -205,5 +208,9 @@ func containsSafeRegistry(content string) bool {
 
 func isLoopback(ip string) bool {
 	host := strings.Split(ip, ":")[0]
-	return host == "127.0.0.1" || host == "0.0.0.0"
+	parsed := net.ParseIP(host)
+	if parsed == nil {
+		return false
+	}
+	return parsed.IsLoopback() || parsed.IsUnspecified() || parsed.IsPrivate()
 }

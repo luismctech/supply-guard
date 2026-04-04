@@ -12,7 +12,8 @@ func TestCheckLockfile_Missing(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"test","dependencies":{"express":"^4.0.0"}}`), 0644)
 
-	findings := checkLockfile(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkLockfile(pf)
 	if len(findings) == 0 {
 		t.Fatal("expected finding for missing lockfile")
 	}
@@ -32,7 +33,8 @@ func TestCheckLockfile_Present(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 	os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte(lock), 0644)
 
-	findings := checkLockfile(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkLockfile(pf)
 	for _, f := range findings {
 		if f.Title == "No lockfile found" {
 			t.Error("should not report missing lockfile when it exists")
@@ -48,7 +50,8 @@ func TestCheckLockfile_OutOfSync(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 	os.WriteFile(filepath.Join(dir, "package-lock.json"), []byte(lock), 0644)
 
-	findings := checkLockfile(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkLockfile(pf)
 	found := false
 	for _, f := range findings {
 		if f.Package == "axios" && f.Title == "Dependency missing from lockfile" {

@@ -17,22 +17,15 @@ type packageWithScripts struct {
 
 var dangerousScripts = []string{"preinstall", "install", "postinstall", "preuninstall", "postuninstall"}
 
-func checkInstallScripts(dir string) []types.Finding {
+func checkInstallScripts(pf *projectFiles) []types.Finding {
 	var findings []types.Finding
 
-	pkgPath := filepath.Join(dir, "package.json")
-	data, err := os.ReadFile(pkgPath)
-	if err != nil {
-		return findings
-	}
-
-	var pkg packageWithScripts
-	if err := json.Unmarshal(data, &pkg); err != nil {
+	if pf.pkg == nil {
 		return findings
 	}
 
 	for _, scriptName := range dangerousScripts {
-		script, ok := pkg.Scripts[scriptName]
+		script, ok := pf.pkg.Scripts[scriptName]
 		if !ok {
 			continue
 		}
@@ -41,7 +34,7 @@ func checkInstallScripts(dir string) []types.Finding {
 			CheckID:     types.CheckInstallScripts,
 			Severity:    types.SeverityMedium,
 			Ecosystem:   "npm",
-			Package:     pkg.Name,
+			Package:     pf.pkg.Name,
 			File:        "package.json",
 			Title:       "Lifecycle script detected: " + scriptName,
 			Description: "Package defines a '" + scriptName + "' lifecycle script. These scripts execute automatically during npm install and are the primary attack vector for npm supply chain attacks.",
@@ -58,7 +51,7 @@ func checkInstallScripts(dir string) []types.Finding {
 				CheckID:   types.CheckNetworkCalls,
 				Severity:  sev,
 				Ecosystem: "npm",
-				Package:   pkg.Name,
+				Package:   pf.pkg.Name,
 				File:      "package.json",
 				Title:     "Network/exec pattern in lifecycle script '" + scriptName + "': " + issue.Pattern,
 				Description: "The '" + scriptName + "' script contains a " + issue.Category +
@@ -68,7 +61,7 @@ func checkInstallScripts(dir string) []types.Finding {
 		}
 	}
 
-	findings = append(findings, scanNodeModulesScripts(dir)...)
+	findings = append(findings, scanNodeModulesScripts(pf.dir)...)
 
 	return findings
 }

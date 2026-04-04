@@ -2,17 +2,15 @@ package pip
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-func checkPipIOCs(dir string) []types.Finding {
+func checkPipIOCsCached(pf *pipProjectFiles) []types.Finding {
 	var findings []types.Finding
 
-	deps := getAllPipDeps(dir)
-	for _, dep := range deps {
+	for _, dep := range pf.deps {
 		match, err := check.CheckPackageIOC("pip", dep.Name, dep.Version)
 		if err != nil {
 			continue
@@ -36,11 +34,10 @@ func checkPipIOCs(dir string) []types.Finding {
 	return findings
 }
 
-func checkPipTyposquatting(dir string) []types.Finding {
+func checkPipTyposquattingCached(pf *pipProjectFiles) []types.Finding {
 	var findings []types.Finding
 
-	deps := getAllPipDeps(dir)
-	for _, dep := range deps {
+	for _, dep := range pf.deps {
 		similarTo, dist, err := check.CheckTyposquatting("pip", dep.Name, 2)
 		if err != nil {
 			continue
@@ -70,17 +67,3 @@ func checkPipTyposquatting(dir string) []types.Finding {
 	return findings
 }
 
-func getAllPipDeps(dir string) []pipDependency {
-	reqFiles := []string{"requirements.txt", "requirements-dev.txt", "requirements-prod.txt"}
-	var all []pipDependency
-
-	for _, f := range reqFiles {
-		deps := parseRequirementsTxt(filepath.Join(dir, f))
-		for i := range deps {
-			deps[i].SourceFile = f
-		}
-		all = append(all, deps...)
-	}
-
-	return all
-}

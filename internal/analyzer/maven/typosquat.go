@@ -1,10 +1,7 @@
 package maven
 
 import (
-	"encoding/xml"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
@@ -12,19 +9,9 @@ import (
 
 const defaultMavenMaxTypoDistance = 2
 
-func checkMavenTyposquatting(dir string) []types.Finding {
+func checkMavenTyposquatting(mf *mavenProjectFiles) []types.Finding {
 	var findings []types.Finding
-
-	pomPath := filepath.Join(dir, "pom.xml")
-	data, err := os.ReadFile(pomPath)
-	if err != nil {
-		return findings
-	}
-
-	var pom pomFile
-	if err := xml.Unmarshal(data, &pom); err != nil {
-		return findings
-	}
+	pom := mf.pom
 
 	for _, dep := range pom.Dependencies.Dependencies {
 		fullName := dep.GroupID + ":" + dep.ArtifactID

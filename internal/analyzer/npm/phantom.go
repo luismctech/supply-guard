@@ -1,31 +1,24 @@
 package npm
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-func checkPhantomDeps(dir string) []types.Finding {
+func checkPhantomDeps(pf *projectFiles) []types.Finding {
 	var findings []types.Finding
 
-	pkgPath := filepath.Join(dir, "package.json")
-	pkgData, err := os.ReadFile(pkgPath)
-	if err != nil {
+	if pf.pkg == nil {
 		return findings
 	}
 
-	var pkg packageJSON
-	if err := json.Unmarshal(pkgData, &pkg); err != nil {
-		return findings
-	}
+	sourceImports := collectImports(pf.dir)
 
-	sourceImports := collectImports(dir)
-
-	for name := range pkg.Dependencies {
+	for name := range pf.pkg.Dependencies {
 		if isKnownNonImport(name) {
 			continue
 		}
@@ -51,50 +44,22 @@ func checkPhantomDeps(dir string) []types.Finding {
 func collectImports(dir string) map[string]bool {
 	imports := make(map[string]bool)
 
-	extensions := []string{".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"}
+	extensions := map[string]bool{".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true}
+	skipDirs := []string{"node_modules", ".git", "dist", "build", ".next"}
 
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	_ = safefile.WalkDir(dir, skipDirs, func(path string, d os.DirEntry) error {
+		if !extensions[filepath.Ext(path)] {
+			return nil
+		}
+
+		data, err := safefile.ReadFile(path)
 		if err != nil {
 			return nil
 		}
 
-		if d.IsDir() {
-			base := d.Name()
-			if base == "node_modules" || base == ".git" || base == "dist" || base == "build" || base == ".next" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if d.Type()&os.ModeSymlink != 0 {
-			return nil
-		}
-
-		ext := filepath.Ext(path)
-		isSource := false
-		for _, e := range extensions {
-			if ext == e {
-				isSource = true
-				break
-			}
-		}
-		if !isSource {
-			return nil
-		}
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		content := string(data)
-		extractImportNames(content, imports)
+		extractImportNames(string(data), imports)
 		return nil
 	})
-
-	if err != nil {
-		return imports
-	}
 
 	return imports
 }
@@ -185,29 +150,25 @@ func normalizeImportName(pkgName string) string {
 	return strings.ToLower(pkgName)
 }
 
-// Packages that are commonly used without being imported (build tools, type defs, etc.)
-func isKnownNonImport(name string) bool {
-	nonImport := map[string]bool{
-		"typescript":     true,
-		"@types/node":    true,
-		"eslint":         true,
-		"prettier":       true,
-		"nodemon":        true,
-		"ts-node":        true,
-		"tsx":            true,
-		"concurrently":   true,
-		"husky":          true,
-		"lint-staged":    true,
-		"tailwindcss":    true,
-		"autoprefixer":   true,
-		"postcss":        true,
-	}
+var knownNonImports = map[string]bool{
+	"typescript":   true,
+	"@types/node":  true,
+	"eslint":       true,
+	"prettier":     true,
+	"nodemon":      true,
+	"ts-node":      true,
+	"tsx":          true,
+	"concurrently": true,
+	"husky":        true,
+	"lint-staged":  true,
+	"tailwindcss":  true,
+	"autoprefixer": true,
+	"postcss":      true,
+}
 
-	if nonImport[name] {
+func isKnownNonImport(name string) bool {
+	if knownNonImports[name] {
 		return true
 	}
-	if strings.HasPrefix(name, "@types/") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(name, "@types/")
 }

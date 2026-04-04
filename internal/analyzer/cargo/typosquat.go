@@ -1,19 +1,20 @@
 package cargo
 
 import (
+	"fmt"
+
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
 const defaultCargoMaxTypoDistance = 2
 
-func checkCargoTyposquatting(dir string) []types.Finding {
+func checkCargoTyposquatting(cf *cargoProjectFiles) []types.Finding {
 	var findings []types.Finding
 
-	lockPath := "Cargo.lock"
-	deps := parseCargoLock(dir + "/" + lockPath)
+	lockFile := "Cargo.lock"
 
-	for _, dep := range deps {
+	for _, dep := range cf.deps {
 		popular, dist, err := check.CheckTyposquatting("cargo", dep.Name, defaultCargoMaxTypoDistance)
 		if err != nil || popular == "" {
 			continue
@@ -30,11 +31,13 @@ func checkCargoTyposquatting(dir string) []types.Finding {
 			Ecosystem: "cargo",
 			Package:   dep.Name,
 			Version:   dep.Version,
-			File:      lockPath,
-			Title:     "Possible typosquatting: " + dep.Name + " (similar to " + popular + ")",
-			Description: "Crate '" + dep.Name + "' has a Levenshtein distance of " +
-				string(rune('0'+dist)) + " from popular crate '" + popular + "'. This may be a typosquatting attempt.",
-			Remediation: "Verify you intended to use '" + dep.Name + "' and not '" + popular + "'.",
+			File:      lockFile,
+			Title:     fmt.Sprintf("Possible typosquatting: %s (similar to %s)", dep.Name, popular),
+			Description: fmt.Sprintf(
+				"Crate '%s' has a Levenshtein distance of %d from popular crate '%s'. This may be a typosquatting attempt.",
+				dep.Name, dist, popular,
+			),
+			Remediation: fmt.Sprintf("Verify you intended to use '%s' and not '%s'.", dep.Name, popular),
 		})
 	}
 

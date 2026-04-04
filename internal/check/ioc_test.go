@@ -47,7 +47,7 @@ func TestCheckC2Domain(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		matches := CheckC2Domain(tt.content)
+		matches, _ := CheckC2Domain(tt.content)
 		if len(matches) != tt.want {
 			t.Errorf("CheckC2Domain(%q) = %d matches, want %d", tt.content[:min(50, len(tt.content))], len(matches), tt.want)
 		}

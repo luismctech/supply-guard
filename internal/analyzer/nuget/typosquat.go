@@ -9,12 +9,10 @@ import (
 
 const defaultNugetMaxTypoDistance = 2
 
-func checkNuGetTyposquatting(dir string) []types.Finding {
+func checkNuGetTyposquattingCached(nf *nugetProjectFiles) []types.Finding {
 	var findings []types.Finding
 
-	csprojFiles := findCsprojFiles(dir)
-	for _, csprojPath := range csprojFiles {
-		refs := parseCsproj(csprojPath)
+	for csprojPath, refs := range nf.csprojMap {
 		for _, ref := range refs {
 			popular, dist, err := check.CheckTyposquatting("nuget", ref.Include, defaultNugetMaxTypoDistance)
 			if err != nil || popular == "" {

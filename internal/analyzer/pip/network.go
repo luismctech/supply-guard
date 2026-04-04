@@ -1,10 +1,10 @@
 package pip
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -15,7 +15,7 @@ func checkPipNetworkCalls(dir string) []types.Finding {
 
 	for _, target := range targets {
 		path := filepath.Join(dir, target)
-		data, err := os.ReadFile(path)
+		data, err := safefile.ReadFile(path)
 		if err != nil {
 			continue
 		}

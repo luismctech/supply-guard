@@ -6,33 +6,21 @@ import (
 	"strings"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
 func checkNuGetNetworkCalls(dir string) []types.Finding {
 	var findings []types.Finding
 
-	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			name := d.Name()
-			if name == ".git" || name == "node_modules" || name == "bin" || name == "obj" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if d.Type()&os.ModeSymlink != 0 {
-			return nil
-		}
-
+	skipDirs := []string{".git", "node_modules", "bin", "obj"}
+	_ = safefile.WalkDir(dir, skipDirs, func(path string, d os.DirEntry) error {
 		name := d.Name()
 		if !strings.HasSuffix(name, ".targets") && !strings.HasSuffix(name, ".props") {
 			return nil
 		}
 
-		data, readErr := os.ReadFile(path)
+		data, readErr := safefile.ReadFile(path)
 		if readErr != nil {
 			return nil
 		}

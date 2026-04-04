@@ -1,32 +1,21 @@
 package maven
 
 import (
-	"bufio"
-	"encoding/xml"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
-func checkMavenVersionRanges(dir string, strictness string) []types.Finding {
+func checkMavenVersionRanges(mf *mavenProjectFiles, strictness string) []types.Finding {
 	var findings []types.Finding
 
-	threshold := mavenRiskThreshold(strictness)
-
-	pomPath := filepath.Join(dir, "pom.xml")
-	data, err := os.ReadFile(pomPath)
-	if err != nil {
-		return findings
-	}
-
-	var pom pomFile
-	if err := xml.Unmarshal(data, &pom); err != nil {
-		return findings
-	}
+	threshold := check.DefaultRiskThreshold(strictness)
+	pom := mf.pom
 
 	for _, dep := range pom.Dependencies.Dependencies {
 		fullName := dep.GroupID + ":" + dep.ArtifactID
@@ -36,7 +25,7 @@ func checkMavenVersionRanges(dir string, strictness string) []types.Finding {
 		}
 		findings = append(findings, types.Finding{
 			CheckID:   types.CheckVersionRange,
-			Severity:  mavenRangeSeverity(cl.Risk),
+			Severity:  check.DefaultRangeSeverity(cl.Risk),
 			Ecosystem: "maven",
 			Package:   fullName,
 			Version:   dep.Version,
@@ -56,7 +45,7 @@ func checkMavenVersionRanges(dir string, strictness string) []types.Finding {
 func checkGradleVersionRanges(dir string, strictness string) []types.Finding {
 	var findings []types.Finding
 
-	threshold := mavenRiskThreshold(strictness)
+	threshold := check.DefaultRiskThreshold(strictness)
 
 	for _, buildFile := range []string{"build.gradle", "build.gradle.kts"} {
 		buildPath := filepath.Join(dir, buildFile)
@@ -65,7 +54,7 @@ func checkGradleVersionRanges(dir string, strictness string) []types.Finding {
 			continue
 		}
 
-		scanner := bufio.NewScanner(f)
+		scanner := safefile.NewScanner(f)
 		lineNum := 0
 		for scanner.Scan() {
 			lineNum++
@@ -82,7 +71,7 @@ func checkGradleVersionRanges(dir string, strictness string) []types.Finding {
 			}
 			findings = append(findings, types.Finding{
 				CheckID:   types.CheckVersionRange,
-				Severity:  mavenRangeSeverity(cl.Risk),
+				Severity:  check.DefaultRangeSeverity(cl.Risk),
 				Ecosystem: "gradle",
 				Package:   name,
 				Version:   version,
@@ -143,26 +132,3 @@ func parseGradleDependencyLine(line string) (string, string) {
 	return "", ""
 }
 
-func mavenRangeSeverity(risk check.VersionRisk) types.Severity {
-	switch risk {
-	case check.RiskDangerous:
-		return types.SeverityHigh
-	case check.RiskPermissive:
-		return types.SeverityMedium
-	case check.RiskConservative:
-		return types.SeverityInfo
-	default:
-		return types.SeverityInfo
-	}
-}
-
-func mavenRiskThreshold(strictness string) check.VersionRisk {
-	switch strictness {
-	case "exact":
-		return check.RiskConservative
-	case "permissive":
-		return check.RiskDangerous
-	default:
-		return check.RiskPermissive
-	}
-}

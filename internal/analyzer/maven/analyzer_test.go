@@ -47,7 +47,8 @@ func TestAnalyzeMaven_HTTPRepository(t *testing.T) {
 </project>`
 	os.WriteFile(filepath.Join(dir, "pom.xml"), []byte(pom), 0644)
 
-	findings := analyzeMaven(dir)
+	mf := loadMavenProjectFiles(dir)
+	findings := analyzeMavenPom(mf)
 	found := false
 	for _, f := range findings {
 		if f.CheckID == types.CheckConfigHardening && f.Severity == types.SeverityHigh {

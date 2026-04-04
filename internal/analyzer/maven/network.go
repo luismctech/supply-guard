@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/check"
+	"github.com/AlbertoMZCruz/supply-guard/internal/safefile"
 	"github.com/AlbertoMZCruz/supply-guard/internal/types"
 )
 
@@ -23,7 +24,7 @@ func checkMavenNetworkCalls(dir string) []types.Finding {
 
 	for file, eco := range targets {
 		path := filepath.Join(dir, file)
-		data, err := os.ReadFile(path)
+		data, err := safefile.ReadFile(path)
 		if err != nil {
 			continue
 		}

@@ -150,6 +150,15 @@ docker run --rm -v $(pwd):/project ghcr.io/albertomzcruz/supply-guard scan /proj
 
 Works with GitHub Actions, Azure DevOps, GitLab CI, Jenkins, and Bitbucket Pipelines. SupplyGuard auto-detects CI environments and adapts output accordingly.
 
+## Security features
+
+- **Safe file reading**: All file reads go through `safefile.ReadFile` with O_NOFOLLOW (symlink race prevention), 50 MB size cap, and `LimitReader` enforcement.
+- **Bounded directory walking**: `safefile.WalkDir` enforces max depth (20) and file count (50,000) limits to prevent resource exhaustion from malicious repos.
+- **Terminal escape protection**: All untrusted data in table output is sanitized to prevent ANSI escape injection from malicious package names.
+- **Config injection warning**: Detects when a scanned repo plants a `supplyguard.yaml` that could disable checks. Use `--config` to specify a trusted path, or set `SUPPLYGUARD_TRUST_PROJECT_CONFIG=true` to suppress.
+- **HTTPS-only updates**: The `update` command enforces HTTPS and blocks redirect downgrades.
+- **Updatable threat intelligence**: `supply-guard update` downloads the latest IOC database to `~/.config/supplyguard/iocs.json`, which is automatically preferred over the embedded data.
+
 ## Design principles
 
 - **Offline-first**: All IOC data is embedded in the binary. Works without internet.
@@ -165,6 +174,8 @@ The embedded IOC database covers known threats at build time. To get the latest:
 ```bash
 supply-guard update
 ```
+
+This saves the updated database to `~/.config/supplyguard/iocs.json`. SupplyGuard automatically uses the disk version when available, falling back to the embedded data if not.
 
 ## License
 

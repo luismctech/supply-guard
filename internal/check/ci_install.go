@@ -48,23 +48,49 @@ func scanForUnsafeInstalls(path string) []CIInstallIssue {
 
 	var issues []CIInstallIssue
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
 	lineNum := 0
+	inMultiLine := false
+	multiLineIndent := 0
+	multiLineStart := 0
 
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 
-		// Match both "- run: cmd" and "run: cmd" forms
-		var cmd string
-		if strings.Contains(trimmed, "run:") {
-			parts := strings.SplitN(trimmed, "run:", 2)
-			if len(parts) == 2 {
-				cmd = strings.TrimSpace(parts[1])
+		if inMultiLine {
+			indent := len(line) - len(strings.TrimLeft(line, " "))
+			if indent > multiLineIndent && trimmed != "" {
+				if issue := classifyInstallCommand(trimmed, path, lineNum); issue != nil {
+					issues = append(issues, *issue)
+				}
+				continue
 			}
+			inMultiLine = false
 		}
 
-		if cmd == "" || cmd == "|" || cmd == "|-" {
+		if !strings.Contains(trimmed, "run:") {
+			continue
+		}
+
+		parts := strings.SplitN(trimmed, "run:", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		cmd := strings.TrimSpace(parts[1])
+
+		if cmd == "|" || cmd == "|-" || cmd == "|+" {
+			inMultiLine = true
+			runKeyIdx := strings.Index(line, "run:")
+			multiLineIndent = runKeyIdx
+			multiLineStart = lineNum
+			_ = multiLineStart
+			continue
+		}
+
+		if cmd == "" {
 			continue
 		}
 
