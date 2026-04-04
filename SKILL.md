@@ -130,6 +130,24 @@ Read the active SupplyGuard policy configuration.
 {}
 ```
 
+### `install_agent_files`
+
+Install agent integration files (rules, MCP configs, docs) into a project.
+
+```json
+{ "directory": ".", "files": ["cursor-rule", "cursor-mcp"] }
+```
+
+## Installing Agent Files via CLI
+
+```bash
+supply-guard agents install              # All files
+supply-guard agents install --cursor     # Cursor rule + MCP config + SKILL.md
+supply-guard agents install --vscode     # VS Code MCP config
+supply-guard agents install --docs       # AGENTS.md + SKILL.md
+supply-guard agents list                 # Check install status
+```
+
 ## Interpreting Results
 
 Each finding has:

@@ -73,6 +73,15 @@ supply-guard scan --watch
 # Initialize hardening config in your project
 supply-guard init
 
+# Install AI agent integration files (Cursor rules, MCP configs, AGENTS.md, SKILL.md)
+supply-guard agents install
+
+# Install only Cursor-specific files
+supply-guard agents install --cursor
+
+# Check which agent files are installed
+supply-guard agents list
+
 # Generate a PR comment from a saved scan
 supply-guard report scan-result.json -f pr-comment
 ```
@@ -180,6 +189,36 @@ Works with GitHub Actions, Azure DevOps, GitLab CI, Jenkins, and Bitbucket Pipel
 
 SupplyGuard is designed to be first-class AI-agent friendly. It can be used by any AI coding assistant via CLI, MCP server, or agent guidance files.
 
+### Quick setup
+
+Install all agent integration files into your project with a single command:
+
+```bash
+supply-guard agents install
+```
+
+This creates:
+
+| File | Purpose |
+|------|---------|
+| `.cursor/rules/supply-guard.mdc` | Auto-triggers scanning on dependency file edits |
+| `.cursor/mcp.json` | Registers SupplyGuard as MCP server in Cursor |
+| `.vscode/mcp.json` | Registers SupplyGuard as MCP server in VS Code / Copilot |
+| `AGENTS.md` | Agent instructions for Codex and GitHub Copilot |
+| `SKILL.md` | Cursor skill definition |
+
+Select specific integrations with flags:
+
+```bash
+supply-guard agents install --cursor   # Cursor rule + MCP config + SKILL.md
+supply-guard agents install --vscode   # VS Code MCP config
+supply-guard agents install --docs     # AGENTS.md + SKILL.md
+```
+
+MCP configs are merged non-destructively: existing servers in `.cursor/mcp.json` or `.vscode/mcp.json` are preserved.
+
+Check install status with `supply-guard agents list`.
+
 ### MCP Server
 
 The `supply-guard mcp` command starts a [Model Context Protocol](https://modelcontextprotocol.io/) server over stdio, allowing AI agents to call SupplyGuard as typed tools without parsing CLI output.
@@ -243,6 +282,7 @@ Once configured, the following tools are available to your AI agent:
 | `suggest_fix` | Step-by-step remediation instructions for a finding | `suggest_fix({ check_id: "SG009", file: ".github/workflows/ci.yml" })` |
 | `list_checks` | List all 12 security checks with descriptions and ecosystems | `list_checks({})` |
 | `get_policy` | Read the active SupplyGuard policy configuration | `get_policy({})` |
+| `install_agent_files` | Install agent integration files into a project | `install_agent_files({ directory: ".", files: ["cursor-rule"] })` |
 
 #### MCP resources
 

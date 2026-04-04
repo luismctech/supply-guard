@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/AlbertoMZCruz/supply-guard/internal/agents"
 	"github.com/AlbertoMZCruz/supply-guard/internal/config"
 	"github.com/AlbertoMZCruz/supply-guard/internal/engine"
 	"github.com/AlbertoMZCruz/supply-guard/internal/report"
@@ -105,6 +106,27 @@ func getToolDefinitions() []toolDefinition {
 				}
 			}`),
 		},
+		{
+			Name:        "install_agent_files",
+			Description: "Install AI agent integration files (Cursor rules, MCP configs, AGENTS.md, SKILL.md) into a project directory. Merges MCP configs non-destructively.",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"directory": {
+						"type": "string",
+						"description": "Project directory (defaults to current working directory)"
+					},
+					"files": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": ["cursor-rule", "cursor-mcp", "vscode-mcp", "agents-md", "skill-md"]
+						},
+						"description": "Specific files to install. Empty or omitted installs all."
+					}
+				}
+			}`),
+		},
 	}
 }
 
@@ -112,11 +134,12 @@ func getToolDefinitions() []toolDefinition {
 func RegisterAllTools(s *Server) {
 	defs := getToolDefinitions()
 	handlers := map[string]ToolHandler{
-		"scan":            handleScan,
-		"explain_finding": handleExplainFinding,
-		"suggest_fix":     handleSuggestFix,
-		"list_checks":     handleListChecks,
-		"get_policy":      handleGetPolicy,
+		"scan":                handleScan,
+		"explain_finding":     handleExplainFinding,
+		"suggest_fix":         handleSuggestFix,
+		"list_checks":         handleListChecks,
+		"get_policy":          handleGetPolicy,
+		"install_agent_files": handleInstallAgentFiles,
 	}
 	for _, d := range defs {
 		if h, ok := handlers[d.Name]; ok {
@@ -124,6 +147,8 @@ func RegisterAllTools(s *Server) {
 		}
 	}
 }
+
+const errInvalidArgs = "invalid arguments: %w"
 
 func handleScan(ctx context.Context, args json.RawMessage) (string, error) {
 	var params struct {
@@ -133,7 +158,7 @@ func handleScan(ctx context.Context, args json.RawMessage) (string, error) {
 	}
 	if len(args) > 0 {
 		if err := json.Unmarshal(args, &params); err != nil {
-			return "", fmt.Errorf("invalid arguments: %w", err)
+			return "", fmt.Errorf(errInvalidArgs, err)
 		}
 	}
 
@@ -205,7 +230,7 @@ func handleExplainFinding(_ context.Context, args json.RawMessage) (string, erro
 		Package string `json:"package"`
 	}
 	if err := json.Unmarshal(args, &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
+		return "", fmt.Errorf(errInvalidArgs, err)
 	}
 
 	checkID := types.CheckID(strings.ToUpper(params.CheckID))
@@ -226,7 +251,7 @@ func handleSuggestFix(_ context.Context, args json.RawMessage) (string, error) {
 		Ecosystem string `json:"ecosystem"`
 	}
 	if err := json.Unmarshal(args, &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
+		return "", fmt.Errorf(errInvalidArgs, err)
 	}
 
 	checkID := types.CheckID(strings.ToUpper(params.CheckID))
@@ -281,6 +306,48 @@ func handleGetPolicy(_ context.Context, args json.RawMessage) (string, error) {
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func handleInstallAgentFiles(_ context.Context, args json.RawMessage) (string, error) {
+	var params struct {
+		Directory string   `json:"directory"`
+		Files     []string `json:"files"`
+	}
+	if len(args) > 0 {
+		if err := json.Unmarshal(args, &params); err != nil {
+			return "", fmt.Errorf(errInvalidArgs, err)
+		}
+	}
+
+	dir := params.Directory
+	if dir == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("cannot get working directory: %w", err)
+		}
+	}
+
+	var files []agents.FileSpec
+	if len(params.Files) > 0 {
+		files = agents.FilesForIDs(params.Files)
+		if len(files) == 0 {
+			return "", fmt.Errorf("no valid file IDs provided. Valid IDs: cursor-rule, cursor-mcp, vscode-mcp, agents-md, skill-md")
+		}
+	} else {
+		files = agents.Registry
+	}
+
+	results, err := agents.Install(dir, files)
+	if err != nil {
+		return "", err
+	}
+
+	data, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
 		return "", err
 	}

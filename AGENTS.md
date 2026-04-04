@@ -11,6 +11,8 @@ It detects malicious packages, typosquatting, phantom dependencies, IOC matches,
 | `supply-guard report <file.json>` | Generate formatted reports from saved scan results |
 | `supply-guard mcp` | Start MCP server over stdio for AI agent integration |
 | `supply-guard init [dir]` | Scaffold `supplyguard.yaml` and `.npmrc` hardening config |
+| `supply-guard agents install [dir]` | Install agent integration files (rules, MCP configs, docs) |
+| `supply-guard agents list [dir]` | Show available integrations and install status |
 | `supply-guard update` | Download the latest IOC threat intelligence database |
 | `supply-guard version` | Print version and build information |
 
@@ -79,6 +81,41 @@ supply-guard report scan-result.json -f commit-message
 # Developer-focused action items list
 supply-guard report scan-result.json -f developer-brief
 ```
+
+## Agents Command
+
+Install agent integration files into any project:
+
+```bash
+# Install all agent files (Cursor rule, MCP configs, AGENTS.md, SKILL.md)
+supply-guard agents install
+
+# Install into a specific directory
+supply-guard agents install /path/to/project
+
+# Only Cursor files (rule + MCP config + SKILL.md)
+supply-guard agents install --cursor
+
+# Only VS Code MCP config
+supply-guard agents install --vscode
+
+# Only documentation files (AGENTS.md + SKILL.md)
+supply-guard agents install --docs
+
+# Check what's installed
+supply-guard agents list
+```
+
+MCP configs are merged non-destructively (existing servers are preserved).
+
+### Install flags
+
+| Flag | Files installed |
+|------|----------------|
+| `--all` (default) | All 5 files |
+| `--cursor` | `.cursor/rules/supply-guard.mdc`, `.cursor/mcp.json`, `SKILL.md` |
+| `--vscode` | `.vscode/mcp.json` |
+| `--docs` | `AGENTS.md`, `SKILL.md` |
 
 ## Output Formats
 
@@ -174,6 +211,14 @@ Returns markdown with concrete fix instructions, code examples, and config snipp
 {}
 ```
 
+**`install_agent_files`** — Install agent integration files into a project directory.
+
+```json
+{ "directory": ".", "files": ["cursor-rule", "cursor-mcp", "vscode-mcp", "agents-md", "skill-md"] }
+```
+
+All parameters are optional. Omit `files` to install everything. Returns JSON with install results (created/updated/skipped per file).
+
 ### Available Resources
 
 | URI | Description |
@@ -241,7 +286,8 @@ cmd/supply-guard/        Entry point (main.go)
 internal/
   analyzer/              Per-ecosystem analyzers (npm, pip, cargo, maven, nuget)
   check/                 Shared check logic (IOC, typosquat, provenance, etc.)
-  cmd/                   CLI commands (scan, init, update, version, mcp, report)
+  agents/                Agent integration file installer
+  cmd/                   CLI commands (scan, init, update, version, mcp, report, agents)
   config/                Configuration loading (supplyguard.yaml)
   engine/                Scan orchestrator
   mcp/                   MCP server (protocol, tools, resources, explanations)
