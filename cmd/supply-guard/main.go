@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/AlbertoMZCruz/supply-guard/internal/cmd"
+	"github.com/AlbertoMZCruz/supply-guard/internal/ui"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 		if errors.As(err, &sevErr) {
 			os.Exit(sevErr.Code)
 		}
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "%s %v\n", ui.Error("Error:"), err)
 		os.Exit(2)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/AlbertoMZCruz/supply-guard/internal/ui"
 )
 
 const (
@@ -43,7 +44,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("only HTTPS URLs are allowed (got %s)", parsed.Scheme)
 	}
 
-	fmt.Println("  Fetching latest IOC database...")
+	fmt.Printf("  %s Fetching latest IOC database...\n", ui.Blue("↓"))
 
 	client := &http.Client{
 		Timeout: 30 * time.Second,
@@ -95,8 +96,8 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot write IOC file: %w", err)
 	}
 
-	fmt.Printf("  ✓ IOC database updated (version: %s)\n", version)
-	fmt.Printf("    Saved to: %s\n", iocPath)
+	fmt.Printf("  %s IOC database updated %s\n", ui.Success("✓"), ui.Dim(fmt.Sprintf("(version: %s)", version)))
+	fmt.Printf("    %s %s\n", ui.Dim("Saved to"), iocPath)
 
 	return nil
 }

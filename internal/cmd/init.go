@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/AlbertoMZCruz/supply-guard/internal/ui"
 )
 
 var initCmd = &cobra.Command{
@@ -45,22 +46,22 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating config: %w", err)
 	}
 	if created {
-		fmt.Printf("  ✓ Created %s\n", cfgPath)
+		fmt.Printf("  %s Created %s\n", ui.Success("✓"), cfgPath)
 	} else {
-		fmt.Printf("  ○ Skipped %s (already exists)\n", cfgPath)
+		fmt.Printf("  %s Skipped %s %s\n", ui.Dim("○"), cfgPath, ui.Dim("(already exists)"))
 	}
 
 	npmrcPath := filepath.Join(absDir, ".npmrc")
 	added, err := appendIfMissing(npmrcPath, "ignore-scripts=true")
 	if err != nil {
-		fmt.Printf("  ⚠ Could not update .npmrc: %v\n", err)
+		fmt.Printf("  %s Could not update .npmrc: %v\n", ui.Warn("⚠"), err)
 	} else if added {
-		fmt.Printf("  ✓ Hardened %s (ignore-scripts=true)\n", npmrcPath)
+		fmt.Printf("  %s Hardened %s %s\n", ui.Success("✓"), npmrcPath, ui.Dim("(ignore-scripts=true)"))
 	} else {
-		fmt.Printf("  ○ Skipped %s (ignore-scripts=true already set)\n", npmrcPath)
+		fmt.Printf("  %s Skipped %s %s\n", ui.Dim("○"), npmrcPath, ui.Dim("(ignore-scripts=true already set)"))
 	}
 
-	fmt.Printf("\n  SupplyGuard initialized. Run 'supply-guard scan' to scan your project.\n\n")
+	fmt.Printf("\n  %s Run %s to scan your project.\n\n", ui.BoldGreen("SupplyGuard initialized."), ui.Bold("supply-guard scan"))
 	return nil
 }
 

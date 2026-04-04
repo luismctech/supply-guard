@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
+	"github.com/AlbertoMZCruz/supply-guard/internal/ui"
 	"github.com/AlbertoMZCruz/supply-guard/internal/version"
 )
 
@@ -12,11 +13,11 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("supply-guard %s\n", version.Version)
-		fmt.Printf("  commit:  %s\n", version.Commit)
-		fmt.Printf("  built:   %s\n", version.Date)
-		fmt.Printf("  go:      %s\n", runtime.Version())
-		fmt.Printf("  os/arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("%s %s\n", ui.Bold("supply-guard"), ui.BoldCyan(version.Version))
+		fmt.Printf("  %s  %s\n", ui.Dim("commit"), version.Commit)
+		fmt.Printf("  %s   %s\n", ui.Dim("built"), version.Date)
+		fmt.Printf("  %s      %s\n", ui.Dim("go"), runtime.Version())
+		fmt.Printf("  %s %s/%s\n", ui.Dim("os/arch"), runtime.GOOS, runtime.GOARCH)
 	},
 }
 

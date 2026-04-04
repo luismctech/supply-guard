@@ -19,6 +19,7 @@ import (
 	_ "github.com/AlbertoMZCruz/supply-guard/internal/analyzer/npm"
 	_ "github.com/AlbertoMZCruz/supply-guard/internal/analyzer/nuget"
 	_ "github.com/AlbertoMZCruz/supply-guard/internal/analyzer/pip"
+	"github.com/AlbertoMZCruz/supply-guard/internal/ui"
 )
 
 // ErrFindingsExceedThreshold signals that findings exceeded the --fail-on threshold.
@@ -87,7 +88,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 
 	if linfo.Mode()&os.ModeSymlink != 0 {
 		if !cfg.Quiet {
-			fmt.Fprintf(os.Stderr, "⚠  Warning: scan target %s is a symlink. Resolving to real path.\n", absDir)
+			fmt.Fprintf(os.Stderr, "%s scan target %s is a symlink. Resolving to real path.\n", ui.Warn("⚠  Warning:"), absDir)
 		}
 		absDir, err = filepath.EvalSymlinks(absDir)
 		if err != nil {

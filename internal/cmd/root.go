@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/AlbertoMZCruz/supply-guard/internal/config"
+	"github.com/AlbertoMZCruz/supply-guard/internal/ui"
 )
 
 var cfgFile string
@@ -90,11 +91,13 @@ func WarnIfUntrustedConfig(scanDir string) bool {
 			return false
 		}
 		fmt.Fprintf(os.Stderr,
-			"⚠  Warning: config loaded from scan target (%s).\n"+
+			"%s config loaded from scan target (%s).\n"+
 				"   A malicious repo could disable checks via this file.\n"+
-				"   Use --config to specify a trusted config path, or set\n"+
-				"   SUPPLYGUARD_TRUST_PROJECT_CONFIG=true to suppress this warning.\n\n",
-			usedFile)
+				"   Use %s to specify a trusted config path, or set\n"+
+				"   %s to suppress this warning.\n\n",
+			ui.Warn("⚠  Warning:"), usedFile,
+			ui.Bold("--config"),
+			ui.Bold("SUPPLYGUARD_TRUST_PROJECT_CONFIG=true"))
 		return true
 	}
 	return false
