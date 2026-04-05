@@ -90,11 +90,19 @@ supply-guard report scan-result.json -f pr-comment
 
 ### Quick install (recommended)
 
+**Linux / macOS:**
+
 ```bash
 curl -sSf https://raw.githubusercontent.com/AlbertoMZCruz/supply-guard/main/install.sh | sh
 ```
 
-This auto-detects your OS and architecture, downloads the latest release, and installs to `/usr/local/bin`.
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/AlbertoMZCruz/supply-guard/main/install.ps1 | iex
+```
+
+Auto-detects OS and architecture, verifies checksums, and adds to PATH.
 
 ### GitHub Releases
 
